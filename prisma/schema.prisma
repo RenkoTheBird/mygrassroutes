@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  password_hash      String
+  display_name       String?
+  location_state     String?
+  location_district  String?
+  subscription_status String   @default("FREE")
+  created_at         DateTime  @default(now())
+  progress           Progress[]
+}
+
+model Lesson {
+  id            String     @id @default(uuid())
+  title         String
+  type          LessonType
+  release_date  DateTime   @default(now())
+  state_specific Boolean   @default(false)
+  content       Json?
+  questions     Question[]
+  progress      Progress[]
+}
+
+model Question {
+  id            String    @id @default(uuid())
+  lesson        Lesson    @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+  lesson_id     String
+  question_text String
+  state_filter  String?
+  answers       Answer[]
+}
+
+model Answer {
+  id          String   @id @default(uuid())
+  question    Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  question_id String
+  answer_text String
+  correct     Boolean  @default(false)
+}
+
+model Progress {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id    String
+  lesson     Lesson   @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+  lesson_id  String
+  completed  Boolean  @default(false)
+  score      Int      @default(0)
+  last_attempt DateTime @default(now())
+
+  @@unique([user_id, lesson_id]) // one progress record per user/lesson
+}
+
+enum LessonType {
+  TREE
+  CURRENT_EVENT
+}
+
