@@ -1,29 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { initializeApp } from "firebase/app";
 import { Link } from "react-router-dom";
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  sendEmailVerification,
 } from "firebase/auth";
-
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyCwGaykPonX4Ihjh3q3bC2zOCkV8i82nrU",
-  authDomain: "mygrassroutes-com.firebaseapp.com",
-  projectId: "mygrassroutes-com",
-  storageBucket: "mygrassroutes-com.firebasestorage.app",
-  messagingSenderId: "116316771347",
-  appId: "1:116316771347:web:7ee1a4920291a3c218dbe6",
-  measurementId: "G-58Q36BCPTW",
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+import { auth } from "../firebase";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -33,20 +18,45 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError]       = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError("Unavailable");
+    setError("");
+    setSuccess("");
 
     if (!username || !email || !password) {
       setError("Please fill out all fields.");
       return;
     }
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     try {
+      // Create user account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Update profile with username
       await updateProfile(userCredential.user, { displayName: username });
-      navigate("/dashboard"); // ✅ useNavigate instead of window.location
+      
+      // Send email verification with action code settings
+      const actionCodeSettings = {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: false,
+      };
+      
+      await sendEmailVerification(userCredential.user, actionCodeSettings);
+      
+      // Show success message
+      setSuccess("Account created! Please check your email to verify your account.");
+      
+      // Wait a bit before navigating to show the message
+      setTimeout(() => {
+        navigate("/");
+      }, 2000);
     } catch (err) {
       setError(err.message);
     }
@@ -64,8 +74,13 @@ export default function Signup() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#FDFBF6]">
-      <div className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-semibold text-[#F9A825] text-center mb-6 font-[Poppins]">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2">
+        <Link to="/" className="inline-flex items-center gap-2 hover:opacity-90 transition">
+          <img src="/assets/headerlogo.png" alt="mygrassroutes logo" className="h-10" />
+        </Link>
+      </div>
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md w-full max-w-md mt-16 mx-4 md:mx-0">
+        <h1 className="text-xl md:text-2xl font-semibold text-[#F9A825] text-center mb-6 font-[Poppins]">
           Sign Up
         </h1>
         <form onSubmit={handleSignup} className="space-y-4">
@@ -106,7 +121,8 @@ export default function Signup() {
             </label>
           </div>
 
-          {error && <div className="text-red-600 text-sm">{error}</div>}
+          {error && <div className="text-red-600 text-sm mb-2">{error}</div>}
+          {success && <div className="text-green-600 text-sm mb-2">{success}</div>}
 
           <button
             type="submit"

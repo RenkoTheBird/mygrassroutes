@@ -4,4 +4,124 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Apply Delius fonts globally */
+body {
+  font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Mobile-first responsive improvements */
+.container {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* Ensure proper text wrapping and spacing on mobile */
+h1, h2, h3, h4, h5, h6 {
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+p, span, div {
+  word-wrap: break-word;
+}
+
+/* Improve touch targets for mobile */
+button, a {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Better mobile scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent horizontal overflow on mobile */
+body {
+  overflow-x: hidden;
+}
+
+/* Custom animations for smooth scrolling effects */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+/* Shake animation for incorrect answers */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Repeating leaf background pattern for Pathway page */
+@media (min-width: 1024px) {
+  .pathway-leaves-bg::before {
+    content: '';
+    position: absolute;
+    left: 2%;
+    top: 0;
+    bottom: 0;
+    width: 6rem;
+    background-image: url('/assets/leaf.svg');
+    background-repeat: repeat-y;
+    /* Create spacing by making each leaf smaller - 60% size with auto height */
+    background-size: 100% 12rem;
+    background-position: left top;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .pathway-leaves-bg::after {
+    content: '';
+    position: absolute;
+    right: 2%;
+    top: 0;
+    bottom: 0;
+    width: 6rem;
+    background-image: url('/assets/leaf.svg');
+    background-repeat: repeat-y;
+    /* Create spacing by making each leaf smaller - 60% size with auto height */
+    background-size: 100% 12rem;
+    background-position: right top;
+    transform: scaleX(-1);
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .pathway-leaves-bg > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
 

@@ -1,6 +1,7 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore, CACHE_SIZE_UNLIMITED, initializeFirestore, persistentLocalCache } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCwGaykPonX4Ihjh3q3bC2zOCkV8i82nrU",
@@ -12,6 +13,10 @@ const firebaseConfig = {
   measurementId: "G-58Q36BCPTW",
 };
 
-const app = initializeApp(firebaseConfig);
-
+export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Initialize Firestore with persistence and unlimited cache
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+});

@@ -1,17 +1,32 @@
-import { useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Routes, Route, Link, useLocation, useSearchParams } from "react-router-dom";
 import AccordionItem from "./components/AccordionItem.jsx";
 import Header from "./components/Header/Header";
+import HeaderActions from "./components/HeaderActions";
 import About from "./pages/About";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-//import Dashboard from "./Dashboard";
+import Pathway from "./pages/Pathway";
+import Sources from "./pages/Sources";
+import QuestionDemo from "./pages/QuestionDemo";
+import Dashboard from "./pages/Dashboard";
+import Contact from "./pages/Contact";
+
 import { AuthProvider } from "./pages/AuthProvider";
 import ProtectedRoute from "./pages/ProtectedRoute";
 
-function App() {
-  // Array of open accordion indexes
+// Custom hook to get location (only works inside Router context)
+function useHideHeader() {
+  const location = useLocation();
+  return location.pathname === "/login" || location.pathname === "/signup" || location.pathname === "/questions" || location.pathname === "/dashboard" || location.pathname === "/pathway" || location.pathname === "/contact";
+}
+
+function AppContent() {
   const [openIndexes, setOpenIndexes] = useState([]);
+  const [showLoggedOutMessage, setShowLoggedOutMessage] = useState(false);
+  const sectionRefs = useRef([]);
+  const hasShownLoggedOutMessage = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const toggleAccordion = (index) => {
     setOpenIndexes((prev) =>
@@ -21,162 +36,392 @@ function App() {
     );
   };
 
-  return (
-    <AuthProvider>
-      <Router>
-        <>
-          {/* Hero Section */}
-          <div className="bg-gray-50">
-            <Header
-              logo="/assets/headerlogo.png"
-              navLinks={[
-                { label: "Home", href: "/" },
-                {
-                  label: "Services",
-                  children: [
-                    { label: "Web Development", href: "#web" },
-                    { label: "App Development", href: "#app" },
-                  ],
-                },
-                { label: "About", href: "/about" },
-                { label: "Contact", href: "#contact" },
-              ]}
-              actions={
-                <>
-                  {/* FIX: buttons replaced with <Link> for routing */}
-                  <Link
-                    to="/login"
-                    className="hidden md:inline-block bg-white text-emerald-700 border border-emerald-700 px-3 py-1 rounded hover:bg-emerald-50 transition"
-                  >
-                    Login
-                  </Link>
-                  <Link 
-                    to="/signup"
-                    className="hidden md:inline-block bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 transition"
-                  >
-                    Signup
-                  </Link>
-                </>
-              }
-            />
-            <main className="pt-20">
-              <Routes>
+  const hideHeader = useHideHeader();
+  const location = useLocation();
+
+  // Check for loggedOut parameter
+  useEffect(() => {
+    if (searchParams.get("loggedOut") === "true" && !hasShownLoggedOutMessage.current) {
+      hasShownLoggedOutMessage.current = true;
+      setShowLoggedOutMessage(true);
+      // Remove the parameter from URL without reloading
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete("loggedOut");
+      setSearchParams(newSearchParams, { replace: true });
+      // Hide message after 5 seconds
+      const timer = setTimeout(() => {
+        setShowLoggedOutMessage(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Reset logged out message flag when route changes
+  useEffect(() => {
+    if (location.pathname !== "/" || !searchParams.get("loggedOut")) {
+      hasShownLoggedOutMessage.current = false;
+    }
+  }, [location.pathname, searchParams]);
+    
+    // Scroll to top when location changes
+    useEffect(() => {
+      window.scrollTo(0, 0);
+    }, [location]);
+    
+    // Fade-in scroll animation effect
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('fade-in-visible');
+            }
+          });
+        },
+        {
+          threshold: 0.1,
+          rootMargin: '0px 0px -50px 0px'
+        }
+      );
+
+      // Reset all elements to initial state first
+      sectionRefs.current.forEach((ref) => {
+        if (ref) {
+          ref.classList.remove('fade-in-visible');
+        }
+      });
+
+      // Use setTimeout to ensure DOM elements are fully rendered
+      const timeoutId = setTimeout(() => {
+        sectionRefs.current.forEach((ref) => {
+          if (ref) {
+            const rect = ref.getBoundingClientRect();
+            const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+            if (isVisible) {
+              ref.classList.add('fade-in-visible');
+            }
+            observer.observe(ref);
+          }
+        });
+      }, 50);
+
+      return () => {
+        clearTimeout(timeoutId);
+        sectionRefs.current.forEach((ref) => {
+          if (ref) observer.unobserve(ref);
+        });
+      };
+    }, []);
+
+    return (
+      <>
+        <style>{`
+          .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.7s ease-out;
+          }
+          
+          .fade-in-visible {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+          }
+          
+          .animate-slide-down {
+            animation: slideDown 0.4s ease-out;
+          }
+          
+          @keyframes slideDown {
+            from {
+              opacity: 0;
+              transform: translateY(-50px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
+        <div className="bg-gray-50">
+        {!hideHeader && (
+          <Header
+            logo="/assets/headerlogo.png"
+            navLinks={[
+              { label: "About", href: "/about" },
+              { label: "Sources", href: "/sources" },
+              { label: "Pathway", href: "/pathway" },
+              { label: "Contact", href: "/contact" },
+            ]}
+            actions={<HeaderActions />}
+          />
+        )}
+        
+        {/* Logged out success message - Global overlay */}
+        {showLoggedOutMessage && (
+          <div className="fixed top-0 left-0 right-0 z-[60] flex justify-center p-4 animate-slide-down pointer-events-none">
+            <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-2xl flex items-center gap-2 border-2 border-green-700">
+              <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="font-semibold text-lg">Logged out successfully.</span>
+            </div>
+          </div>
+        )}
+        
+        <main className={!hideHeader ? "pt-20" : ""}>
+          <Routes>
                 <Route
                   path="/"
                   element={
                     <>
                       {/* --- Home Page Sections --- */}
-                      {/* Top Section */}
-                      <header className="container mx-auto py-12">
-                        <div
-                          className="flex flex-wrap items-center p-8 rounded-xl shadow-lg relative overflow-hidden"
-                          style={{
-                            backgroundImage: "url('/assets/leaves-bg.jpg')",
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-emerald-700/70"></div>
+                      {/* Top Section - Rectangular Design */}
+                      <header className="container mx-auto py-12 px-4 md:px-6 flex justify-center">
+                        <div className="relative w-full max-w-6xl">
+                          {/* Main rectangular container */}
+                          <div 
+                            className="w-full min-h-[400px] md:min-h-[500px] rounded-2xl flex flex-col md:flex-row items-center p-6 md:p-8 shadow-lg relative overflow-hidden"
+                            style={{
+                              backgroundImage: "url('/assets/leaves-bg.jpg')",
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          >
+                            <div className="absolute inset-0 bg-emerald-700/70 rounded-2xl"></div>
+                            
+                            {/* Left Side - Text Content */}
+                            <div className="relative z-10 w-full md:w-1/2 flex flex-col items-start justify-center p-4 md:p-8">
+                              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold leading-tight mb-4 text-white text-left">
+                                You've always been told to "get involved." So forge your path to change.
+                              </h1>
+                              <p className="text-sm md:text-base mb-6 text-white text-left max-w-md">
+                                Create change right from your screen.
+                              </p>
+                              <Link to="/pathway" className="inline-block bg-white text-emerald-700 font-medium px-4 md:px-5 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
+                                View The Pathway Now →
+                              </Link>
+                            </div>
 
-                          <div className="relative flex-1 min-w-[300px] text-white z-10">
-                            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
-                              Finally, a way to get involved that actually works.
-                            </h1>
-                            <p className="mt-4 max-w-lg">
-                              Politics isn’t broken — access to it is. We’re here to fix that.
-                            </p>
-                            <button className="mt-6 bg-white text-emerald-700 font-medium px-5 py-2 rounded shadow hover:bg-emerald-50 transition">
-                              View The Tree →
-                            </button>
-                          </div>
+                            {/* Right Side - Mini Pathway Diagram */}
+                            <div className="relative z-10 w-full md:w-1/2 flex flex-col items-center justify-center p-4">
+                              <div className="w-full max-w-sm bg-white/90 backdrop-blur-sm rounded-lg p-4 md:p-6 shadow-xl">
+                                <h3 className="text-xs font-bold text-emerald-700 mb-4 text-center">
+                                  Unit 1: Grassroots Movements
+                                </h3>
+                                
+                                {/* Mini lesson cards */}
+                                <div className="space-y-2">
+                                  {/* Lesson 1-1 */}
+                                  <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded border border-emerald-200">
+                                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                      1-A
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800 truncate">
+                                        The power of the desk
+                                      </p>
+                                    </div>
+                                    <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
 
-                          <div className="relative flex-1 min-w-[300px] mt-6 md:mt-0 z-10">
-                            <img
-                              src="../assets/rotunda.jpeg"
-                              alt="George Washington watching over the U.S. Capitol Rotunda"
-                              className="w-full rounded-xl shadow-lg"
-                            />
+                                  {/* Arrow */}
+                                  <div className="flex justify-center py-0.5">
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </div>
+
+                                  {/* Lesson 1-2 */}
+                                  <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded border border-emerald-200">
+                                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                      1-B
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800 truncate">
+                                        Change throughout history
+                                      </p>
+                                    </div>
+                                    <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+
+                                  {/* Arrow */}
+                                  <div className="flex justify-center py-0.5">
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </div>
+
+                                  {/* Lesson 1-3 */}
+                                  <div className="flex items-center gap-2 bg-white p-2 rounded border border-gray-300">
+                                    <div className="w-8 h-8 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                      1-C
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-800 truncate">
+                                        Change today
+                                      </p>
+                                    </div>
+                                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                  </div>
+                                </div>
+
+                                <p className="text-xs text-center text-gray-600 mt-4">
+                                  Forge your own path to change
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </header>
 
                   {/* Problem / Agitation */}
-                  <section className="container mx-auto py-12 bg-emerald-50">
-                    <h2 className="text-center text-3xl font-bold text-emerald-700">
-                      You're told to “get involved.” But how?
+                  <section 
+                    ref={el => sectionRefs.current[0] = el}
+                    className="container mx-auto py-12 bg-emerald-50 px-4 md:px-6 fade-in"
+                  >
+                    <h2 className="text-center text-2xl md:text-3xl font-bold text-emerald-700">
+                      Everyone tells you to "get involved." But how?
                     </h2>
-                    <p className="mt-4 max-w-3xl mx-auto text-center text-gray-700 leading-relaxed">
-                      You want to make a difference — but politics feels distant, confusing,
-                      and rigged for insiders. The system is hard to navigate. And most
-                      sites just explain — they don’t empower.
+                    <p className="mt-4 max-w-3xl mx-auto text-center text-gray-700 leading-relaxed text-sm md:text-base px-2 md:px-0">
+                      Politics feels distant, confusing, corrupt, and rigged for insiders. 
+                      The system is hard to navigate. And most sites just explain, 
+                      without telling you how to create the change you want.
                     </p>
                   </section>
 
                   {/* Solutions */}
-                  <section className="container mx-auto py-12 bg-emerald-100 text-center">
-                    <h2 className="text-3xl font-bold text-emerald-800">
-                      mygrassroutes turns learning into real action.
-                    </h2>
-                    <ul className="mt-6 space-y-3 text-left inline-block text-gray-800">
-                      <li>✅ Interactive Tree: learn by doing, not memorizing</li>
-                      <li>✅ Local-first: discover exactly where you can make change</li>
-                      <li>✅ Real results: unlock actions that matter — now</li>
-                      <li>✅ Designed for first-timers, built for changemakers</li>
-                    </ul>
-                    <div>
-                      <button className="mt-6 bg-emerald-700 text-white px-6 py-2 rounded shadow hover:bg-emerald-800 transition">
-                        Get Started Now →
-                      </button>
+                  <section 
+                    ref={el => sectionRefs.current[1] = el}
+                    className="container mx-auto py-12 bg-emerald-100 px-4 md:px-6 fade-in"
+                  >
+                    <div className="flex flex-col md:flex-row gap-8 items-center">
+                      {/* Left Side - Text Content */}
+                      <div className="w-full md:w-1/2 text-center">
+                        <h2 className="text-2xl md:text-3xl font-bold text-emerald-800 mb-6">
+                          mygrassroutes turns learning into action.
+                        </h2>
+                        <ul className="space-y-3 text-gray-800 text-sm md:text-base mb-6 max-w-lg mx-auto">
+                          <li>✅ Learn by doing, not memorizing</li>
+                          <li>✅ Discover exactly where you can make change</li>
+                          <li>✅ Unlock actions that matter now</li>
+                          <li>✅ Designed for first-timers, built for changemakers</li>
+                        </ul>
+                        <div className="flex justify-center">
+                          <Link to="/pathway" className="inline-block bg-emerald-700 text-white px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-800 transition text-sm md:text-base">
+                            Get Started Now →
+                          </Link>
+                        </div>
+                      </div>
+
+                      {/* Right Side - Sample Question Card */}
+                      <div className="w-full md:w-1/2 flex justify-center">
+                        <div className="w-full max-w-md bg-white rounded-lg p-6 shadow-xl">
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium text-emerald-600 uppercase tracking-wide">Sample Question</span>
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide bg-gray-100 px-2 py-1 rounded">
+                                Multiple Choice
+                              </span>
+                            </div>
+                            <h3 className="text-sm font-bold text-gray-800 mb-4">
+                              What is the primary goal of grassroots organizing?
+                            </h3>
+                          </div>
+
+                          {/* Question Options */}
+                          <div className="space-y-2 mb-4">
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                              <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                A
+                              </div>
+                              <span className="text-xs flex-1 text-gray-800">Create change from the ground up</span>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                              <div className="w-7 h-7 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                B
+                              </div>
+                              <span className="text-xs flex-1 text-gray-800">Run for political office</span>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                              <div className="w-7 h-7 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                C
+                              </div>
+                              <span className="text-xs flex-1 text-gray-800">Join a political party</span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-center text-gray-600 italic">
+                            Learn by answering detailed questions
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </section>
 
                   {/* Social Proof */}
-                  <section className="container mx-auto py-12 bg-emerald-50">
-                    <h2 className="text-center text-3xl font-bold text-emerald-700">
+                  <section 
+                    ref={el => sectionRefs.current[2] = el}
+                    className="container mx-auto py-12 bg-emerald-50 px-4 md:px-6 fade-in"
+                  >
+                    <h2 className="text-center text-2xl md:text-3xl font-bold text-emerald-700">
                       Over 10,000 people are already creating change
                     </h2>
-                    <div className="flex flex-wrap gap-6 mt-6 justify-center">
-                      <blockquote className="bg-white shadow-md p-6 rounded-lg max-w-sm text-gray-700 italic">
-                        “I went from confused to connected in 30 minutes.” — Sam, MI
+                    <div className="flex flex-wrap gap-4 md:gap-6 mt-6 justify-center">
+                      <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
+                        "I went from confused to connected in 30 minutes." — Sam, MI
                       </blockquote>
-                      <blockquote className="bg-white shadow-md p-6 rounded-lg max-w-sm text-gray-700 italic">
-                        “No more guesswork. I’m organizing my first event.” — Lex, CA
+                      <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
+                        "No more guesswork. I'm organizing my first event." — Lex, CA
                       </blockquote>
                     </div>
                   </section>
 
                   {/* Differentiation */}
-                  <section className="container mx-auto py-12 bg-emerald-100">
-                    <h2 className="text-center text-3xl font-bold text-emerald-800">
-                      We don’t just teach. We activate.
+                  <section 
+                    ref={el => sectionRefs.current[3] = el}
+                    className="container mx-auto py-12 bg-emerald-100 px-4 md:px-6 fade-in"
+                  >
+                    <h2 className="text-center text-2xl md:text-3xl font-bold text-emerald-800">
+                      Swap memorization for action.
                     </h2>
-                    <table className="w-full mt-8 text-center border-collapse text-gray-700">
-                      <thead>
-                        <tr className="bg-emerald-200">
-                          <th className="py-2 text-brown-700">Old Civics</th>
-                          <th className="py-2 text-emerald-800">mygrassroutes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b">
-                          <td className="py-2">Memorize the three branches</td>
-                          <td className="py-2">Join a campaign in your zip code</td>
-                        </tr>
-                        <tr className="border-b">
-                          <td className="py-2">Read a textbook</td>
-                          <td className="py-2">Get live civic action prompts</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2">Watch from the sidelines</td>
-                          <td className="py-2">Lead from where you are</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    <div className="overflow-x-auto">
+                      <table className="w-full mt-8 text-center border-collapse text-gray-700 text-sm md:text-base">
+                        <thead>
+                          <tr className="bg-emerald-200">
+                            <th className="py-2 text-brown-700 px-2">Old Civics</th>
+                            <th className="py-2 text-emerald-800 px-2">mygrassroutes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b">
+                            <td className="py-2 px-2">Memorize the three branches</td>
+                            <td className="py-2 px-2">Join a campaign in your zip code</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-2 px-2">Read a boring textbook</td>
+                            <td className="py-2 px-2">Get live civic action prompts</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 px-2">Watch from the sidelines</td>
+                            <td className="py-2 px-2">Lead from where you are</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </section>
 
                   {/* FAQ Section */}
-                  <section className="container mx-auto py-12 bg-emerald-50">
-                    <h2 className="text-emerald-700 text-3xl font-bold">Got questions?</h2>
+                  <section 
+                    ref={el => sectionRefs.current[4] = el}
+                    className="container mx-auto py-12 bg-emerald-50 px-4 md:px-6 fade-in"
+                  >
+                    <h2 className="text-emerald-700 text-2xl md:text-3xl font-bold">Got questions?</h2>
 
                     <AccordionItem
                       title="What if I don’t know anything about politics?"
@@ -184,7 +429,7 @@ function App() {
                       onClick={() => toggleAccordion(0)}
                     >
                       <p>
-                        No problem. The Tree starts at zero and guides you one click at a
+                        No problem. The Pathway starts at zero and guides you one click at a
                         time.
                       </p>
                     </AccordionItem>
@@ -195,7 +440,7 @@ function App() {
                       onClick={() => toggleAccordion(1)}
                     >
                       <p>
-                        Nope. Anyone can use mygrassroutes — from new voters to seasoned
+                        Nope. Anyone can use mygrassroutes, from young students to seasoned
                         activists.
                       </p>
                     </AccordionItem>
@@ -206,8 +451,7 @@ function App() {
                       onClick={() => toggleAccordion(2)}
                     >
                       <p>
-                        It's hands-on, fast-paced, and built to get you moving — not just
-                        informed.
+                        mygrassroutes is hands-on, fast-paced, and built to get you moving, not memorizing.
                       </p>
                     </AccordionItem>
 
@@ -217,59 +461,73 @@ function App() {
                       onClick={() => toggleAccordion(3)}
                     >
                       <p>
-                        Yes. Many actions — organizing, contacting reps, joining events —
-                        can start right from your screen.
+                        Yes! Learn to join, grow, and create a movement right from your screen.
                       </p>
                     </AccordionItem>
                   </section>
 
                   {/* Call to Action */}
-                  <section className="container mx-auto py-12 text-center bg-emerald-700 text-white rounded-lg mt-8 shadow-lg">
-                    <h2 className="text-3xl font-bold">
-                      Real change starts right here.
-                    </h2>
-                    <p className="mt-4 max-w-xl mx-auto">
-                      Stop waiting for someone else to fix it. Let’s do it together.
-                    </p>
-                    <button className="mt-6 bg-white text-emerald-700 px-6 py-2 rounded shadow hover:bg-emerald-50 transition">
-                      View The Tree →
-                    </button>
+                  <section 
+                    ref={el => sectionRefs.current[5] = el}
+                    className="container mx-auto py-12 text-center text-white rounded-lg mt-8 shadow-lg px-4 md:px-6 relative overflow-hidden fade-in"
+                    style={{
+                      backgroundImage: "url('/assets/leaves-bg.jpg')",
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-emerald-700/70"></div>
+                    <div className="relative z-10">
+                      <h2 className="text-2xl md:text-3xl font-bold">
+                        Real change starts right here.
+                      </h2>
+                      <p className="mt-4 max-w-xl mx-auto text-sm md:text-base">
+                        Don't wait for someone else to make change. Create it yourself.
+                      </p>
+                      <Link to="/pathway" className="mt-6 inline-block bg-white text-emerald-700 px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
+                        View The Pathway →
+                      </Link>
+                    </div>
                   </section>
 
                   {/* Footer */}
-                  <footer className="bg-gray-900 text-white py-6 text-center mt-8">
-                    <p>
-                      <strong>mygrassroutes</strong> – Learn. Act. Lead.
+                  <footer className="bg-gray-900 text-white py-6 text-center mt-8 px-4 md:px-6">
+                    <p className="text-sm md:text-base">
+                      <strong>mygrassroutes</strong> – Politics for all.
                     </p>
-                    <nav className="mt-2 space-x-3 text-sm">
-                      <a href="#" className="hover:underline">FAQ</a> |
-                      <a href="#" className="hover:underline">Privacy</a> |
-                      <a href="#" className="hover:underline">Contact</a>
-                    </nav>
+                    <p className="mt-2 text-xs opacity-75">
+                      Copyright © 2025 mygrassroutes
+                    </p>
                   </footer>
                 </>
               } />
               <Route path="/about" element={<About />} />
+              <Route path="/sources" element={<Sources />} />
+              <Route path="/pathway" element={<Pathway />} />
+              <Route path="/questions" element={<QuestionDemo />} />
+              <Route path="/contact" element={<Contact />} />
 
                 {/* NEW: Login route */}
                 <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} /> {/* ✅ Added signup route */}
+                <Route path="/signup" element={<Signup />} />
                 {/* NEW: Protected Dashboard route */}
-                {/* <Route
+                <Route
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
                       <Dashboard />
                     </ProtectedRoute>
                   }
-                /> */}
-              </Routes>
-            </main>
-          </div>
-        </>
-      </Router>
-    </AuthProvider>
-  );
+                />
+          </Routes>
+        </main>
+        </div>
+      </>
+    );
+}
+
+function App() {
+  return <AppContent />;
 }
 
 export default App;

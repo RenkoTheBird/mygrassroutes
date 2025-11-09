@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 /src/generated/prisma
+.env
+NGROK_SETUP.md
+NGROK_TROUBLESHOOTING.md
+env.example
