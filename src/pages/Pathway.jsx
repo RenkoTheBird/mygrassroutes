@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from "react-router-dom";
 import DonationForm from "../components/DonationForm";
 import database from "../database/database";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { useAuth } from "./AuthProvider";
-import { CheckCircle, Circle, ArrowDown } from "lucide-react";
+import { CheckCircle, Circle, X } from "lucide-react";
 
 function Pathway() {
   const { user } = useAuth();
@@ -12,18 +12,28 @@ function Pathway() {
   const [unit1Lessons, setUnit1Lessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedLessonId, setSelectedLessonId] = useState(null);
+  const lessonRefs = useRef({});
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [paymentMessage, setPaymentMessage] = useState(null);
+  const hasShownPaymentMessage = useRef(false);
 
   // Load all Unit 1 lessons on component mount
   useEffect(() => {
     const loadUnit1Lessons = async () => {
       setLoading(true);
+      setError(null); // Clear any previous errors
       try {
+        console.log('[Pathway] Starting to load Unit 1 lessons...');
         // Get all sections for unit 1
         const sections = await database.getSectionsByUnit(1);
+        console.log('[Pathway] Got sections:', sections);
         
         // Fetch all lessons for each section
         const lessonsPromises = sections.map(async (section) => {
+          console.log(`[Pathway] Fetching lessons for section ${section.id} (${section.title})`);
           const lessons = await database.getLessonsBySection(section.id);
+          console.log(`[Pathway] Got ${lessons.length} lessons for section ${section.id}`);
           return lessons.map(lesson => ({
             ...lesson,
             section_number: section.section_number,
@@ -34,6 +44,7 @@ function Pathway() {
         // Flatten all lessons into a single array
         const allLessons = await Promise.all(lessonsPromises);
         const flattenedLessons = allLessons.flat();
+        console.log(`[Pathway] Total lessons loaded: ${flattenedLessons.length}`);
         
         // Sort lessons by section number and lesson letter
         flattenedLessons.sort((a, b) => {
@@ -55,9 +66,81 @@ function Pathway() {
     loadUnit1Lessons();
   }, []);
 
-  const handleLessonClick = async (lesson) => {
+  // Check for payment status in URL parameters
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    
+    if (paymentStatus && !hasShownPaymentMessage.current) {
+      hasShownPaymentMessage.current = true;
+      
+      if (paymentStatus === 'success') {
+        setPaymentMessage({ type: 'success', text: 'Payment processed successfully! Thank you for your support.' });
+      } else if (paymentStatus === 'cancelled') {
+        setPaymentMessage({ type: 'error', text: 'Payment was cancelled. If you encountered any issues, please try again.' });
+      }
+      
+      // Remove the parameter from URL without reloading
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('payment');
+      setSearchParams(newSearchParams, { replace: true });
+      
+      // Auto-dismiss message after 8 seconds
+      const timer = setTimeout(() => {
+        setPaymentMessage(null);
+      }, 8000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Reset payment message flag when component unmounts or route changes
+  useEffect(() => {
+    return () => {
+      hasShownPaymentMessage.current = false;
+    };
+  }, []);
+
+  // Handle clicks outside lesson boxes to close pop-out
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (selectedLessonId === null) return;
+      
+      // Check if click is inside any lesson button or pop-out box
+      const clickedInside = Object.values(lessonRefs.current).some(ref => 
+        ref && ref.contains(event.target)
+      );
+      
+      if (!clickedInside) {
+        setSelectedLessonId(null);
+      }
+    };
+
+    if (selectedLessonId !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectedLessonId]);
+
+  const handleLessonClick = (lesson, event) => {
+    // Stop propagation to prevent immediate closing
+    if (event) {
+      event.stopPropagation();
+    }
+    
+    // Toggle selection - if clicking the same lesson, deselect it
+    if (selectedLessonId === lesson.id) {
+      setSelectedLessonId(null);
+    } else {
+      setSelectedLessonId(lesson.id);
+    }
+  };
+
+  const handleStartLesson = (lesson) => {
     try {
-      console.log('Clicking lesson:', lesson);
+      console.log('Starting lesson:', lesson);
       window.location.href = `/questions?lesson=${lesson.id}`;
     } catch (error) {
       console.error('Error loading lesson:', error);
@@ -65,8 +148,41 @@ function Pathway() {
     }
   };
 
+    // Helper function to check if a lesson is accessible
+    const isLessonAccessible = (lesson, sectionLessons) => {
+      if (!user) {
+        // When not logged in, only first section is accessible
+        return lesson.section_number === 1;
+      }
+      
+      // When logged in, check if previous lesson in the section is completed
+      // First lesson (A) is always accessible
+      if (lesson.lesson_letter === 'A') {
+        return true;
+      }
+      
+      // Find the previous lesson in the same section
+      const lessonOrder = ['A', 'B', 'C', 'D', 'E', 'F'];
+      const currentIndex = lessonOrder.indexOf(lesson.lesson_letter);
+      if (currentIndex === 0) return true; // First lesson
+      
+      const previousLetter = lessonOrder[currentIndex - 1];
+      const previousLesson = sectionLessons.find(
+        l => l.section_number === lesson.section_number && l.lesson_letter === previousLetter
+      );
+      
+      if (!previousLesson) return true; // If previous lesson doesn't exist, allow access
+      
+      // Lesson is accessible if previous lesson is completed
+      return isLessonCompleted(previousLesson.id);
+    };
+
+    // When logged out, show all lessons but only section 1 is accessible
+    // When logged in, show all lessons
+    const filteredLessons = unit1Lessons;
+
     // Group lessons by section
-    const groupedLessons = unit1Lessons.reduce((acc, lesson) => {
+    const groupedLessons = filteredLessons.reduce((acc, lesson) => {
       const sectionKey = `${lesson.section_number}-${lesson.section_title}`;
       if (!acc[sectionKey]) {
         acc[sectionKey] = {
@@ -78,6 +194,19 @@ function Pathway() {
       acc[sectionKey].lessons.push(lesson);
       return acc;
     }, {});
+
+    // Separate accessible sections from preview sections when logged out
+    const accessibleSections = !user 
+      ? Object.values(groupedLessons).filter(section => section.section_number === 1)
+      : Object.values(groupedLessons);
+    
+    const previewSections = !user
+      ? Object.values(groupedLessons).filter(section => section.section_number > 1)
+      : [];
+
+    // Flatten all lessons for global indexing (Z-pattern)
+    const allLessonsFlat = filteredLessons;
+    const selectedLesson = selectedLessonId ? allLessonsFlat.find(l => l.id === selectedLessonId) : null;
 
     return (
         <>
@@ -99,26 +228,36 @@ function Pathway() {
                     </span>
                   </div>
                 </div>
-                <Link 
-                  to="/dashboard" 
-                  className="text-sm font-medium text-emerald-700 hover:text-emerald-900 hover:underline flex items-center"
-                >
-                  View Profile →
-                </Link>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => {
+                      document.getElementById('donation-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="text-sm font-medium text-emerald-700 hover:text-emerald-900 hover:underline flex items-center"
+                  >
+                    Donate →
+                  </button>
+                  <Link 
+                    to="/dashboard" 
+                    className="text-sm font-medium text-emerald-700 hover:text-emerald-900 hover:underline flex items-center"
+                  >
+                    View Profile →
+                  </Link>
+                </div>
               </div>
             </div>
           ) : (
             // Non-logged-in user: Notice Banner
-            <div className="bg-amber-50 py-3 px-6">
-              <div className="max-w-7xl mx-auto flex items-center justify-between h-full">
-                <p className="text-sm text-amber-800">
+            <div className="bg-amber-50 py-3 px-4 md:px-6">
+              <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
+                <p className="text-sm text-amber-800 leading-relaxed">
                   You can view the Pathway, but your progress will not be saved.{" "}
                   <Link to="/signup" className="font-medium text-amber-900 hover:underline">
                     Create an account
                   </Link>
                   {" "}to track your progress.
                 </p>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 md:gap-4 flex-wrap">
                   <Link 
                     to="/" 
                     className="text-sm font-medium text-amber-700 hover:text-amber-900 hover:underline flex items-center"
@@ -137,50 +276,128 @@ function Pathway() {
           )}
         </div>
 
-        <main style={{ paddingTop: '56px' }}>
+        <main className="pt-32 md:pt-14">
+          {/* Payment Status Message */}
+          {paymentMessage && (
+            <div className={`fixed top-16 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-4 rounded-lg shadow-2xl border-2 animate-slide-down ${
+              paymentMessage.type === 'success' 
+                ? 'bg-green-600 text-white border-green-700' 
+                : 'bg-red-600 text-white border-red-700'
+            }`}>
+              {paymentMessage.type === 'success' ? (
+                <CheckCircle className="w-6 h-6 flex-shrink-0" />
+              ) : (
+                <X className="w-6 h-6 flex-shrink-0" />
+              )}
+              <span className="font-semibold text-lg">{paymentMessage.text}</span>
+              <button
+                onClick={() => setPaymentMessage(null)}
+                className="ml-2 hover:opacity-80 transition-opacity"
+                aria-label="Dismiss message"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
           {/* Unit 1 Lessons Path with decorative sides */}
-          <section className="py-12 px-4 md:px-6 relative pathway-leaves-bg">
+          <section className="pt-8 pb-12 px-4 md:px-6 md:py-12 relative pathway-leaves-bg">
 
             <div className="max-w-7xl mx-auto">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                  Unit 1: Grassroots movements
-                </h2>
-                {!user && (
-                  <Link 
-                    to="/login" 
-                    className="inline-block text-sm text-emerald-700 hover:text-emerald-900 hover:underline"
-                  >
-                    Log in to save your progress
-                  </Link>
-                )}
+              <div className="text-center mb-8 mt-4 md:mt-0">
+                <div className="lg:pl-80 px-4 md:px-0">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2 leading-tight scroll-mt-32 md:scroll-mt-14">
+                    Unit 1: Grassroots movements
+                  </h2>
+                  {!user && (
+                    <Link 
+                      to="/login" 
+                      className="inline-block text-sm text-emerald-700 hover:text-emerald-900 hover:underline mt-2"
+                    >
+                      Log in to save your progress
+                    </Link>
+                  )}
+                </div>
               </div>
 
-              {/* Centered content with max width */}
-              <div className="flex justify-center">
-                <div className="w-full max-w-2xl">
+              {/* Left side: Fixed panel with progress summary - hidden on mobile */}
+              <div className="hidden lg:block fixed left-0 top-[56px] bottom-0 w-80 bg-white border-r-2 border-gray-200 overflow-y-auto z-30">
+                <div className="p-6 space-y-6">
+                  {/* Unit Description */}
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-800 mb-2">Unit 1: Grassroots movements</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      Let's explore how to grow change from the ground up! 
+                      Learn how individual actions can create meaningful social change, understand effective 
+                      strategies for community engagement, and develop the skills needed to mobilize people 
+                      around shared goals. Practical examples and scenarios will teach you your rights as a 
+                      protestor, the importance of interest groups, the real way to get a boycott working,
+                      how to start a petition despite all the bureaucracy, and more.
+                    </p>
+                  </div>
 
-                  {loading ? (
-                    <div className="text-center py-12">
-                      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
-                      <p className="mt-4 text-gray-600">Loading your path...</p>
-                    </div>
-                  ) : error ? (
-                    <div className="text-center py-12">
-                      <p className="text-red-600 mb-4">{error}</p>
-                      <button 
-                        onClick={() => window.location.reload()}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {Object.values(groupedLessons).map((section, sectionIndex) => {
-                        let lessonIndex = 0; // Track lesson index within each section
+                  {/* Progress Summary */}
+                  <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-6 shadow-md">
+                    <h3 className="font-bold text-lg text-gray-800 mb-4">Your Progress</h3>
+                    {user ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Lessons Completed</span>
+                          <span className="font-bold text-emerald-600">
+                            {getProgressStats().totalCompleted} / {allLessonsFlat.length}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(getProgressStats().totalCompleted / allLessonsFlat.length) * 100}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {Math.round((getProgressStats().totalCompleted / allLessonsFlat.length) * 100)}% complete
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-600">
+                        <p className="mb-3">
+                          Log in to track your progress and save your learning journey.
+                        </p>
+                        <Link 
+                          to="/login"
+                          className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium w-full sm:w-auto"
+                        >
+                          Log in
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Z-Pattern Layout with Split Screen */}
+              <div className="w-full max-w-7xl mx-auto lg:pl-80 px-4 md:px-0">
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+                    <p className="mt-4 text-gray-600">Loading your path...</p>
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-12">
+                    <p className="text-red-600 mb-4">{error}</p>
+                    <button 
+                      onClick={() => window.location.reload()}
+                      className="px-6 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center justify-center"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-8 relative">
+                    {/* Right side: Lesson boxes with Z-pattern */}
+                    <div className="w-full space-y-8 relative">
+                      {accessibleSections.map((section, sectionIndex) => {
                         return (
-                          <div key={`section-${section.section_number}`} className="space-y-4">
+                          <div key={`section-${section.section_number}`} className="space-y-6">
                             {/* Section Title */}
                             <div className="text-center mb-6 pt-8 border-t-2 border-gray-200">
                               <h3 className="text-xl font-bold text-emerald-700">
@@ -188,90 +405,241 @@ function Pathway() {
                               </h3>
                             </div>
                             
-                            {/* Section's Lessons */}
-                            {section.lessons.map((lesson) => {
-                              const completed = isLessonCompleted(lesson.id);
-                              const isFirstLesson = lessonIndex === 0;
-                              lessonIndex++;
-                              
-                              return (
-                                <div key={lesson.id} className="relative">
-                                  {/* Arrow connector */}
-                                  {!isFirstLesson && (
-                                    <div className="absolute left-6 top-0 w-0.5 h-8 bg-gray-300 transform -translate-y-full">
-                                      <ArrowDown className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-4 h-4 text-gray-300" />
-                                    </div>
-                                  )}
-                                  
-                                  <button
-                                    onClick={() => handleLessonClick(lesson)}
-                                    className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${
-                                      completed 
-                                        ? 'bg-gray-100 border-gray-300 hover:bg-gray-200' 
-                                        : 'bg-white border-emerald-300 hover:border-emerald-400 hover:shadow-lg'
-                                    }`}
-                                  >
-                                    <div className="flex items-start gap-3">
-                                      {/* Lesson Number/Letter Badge */}
-                                      <div className="flex-shrink-0">
-                                        <div
-                                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xs ${
-                                            completed ? 'bg-gray-400' : 'bg-emerald-600'
-                                          }`}
-                                        >
-                                          {lesson.section_number}-{lesson.lesson_letter}
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Lesson Content */}
-                                      <div className="flex-1 min-w-0">
-                                        <h3 className="font-bold text-sm text-gray-800 mb-1">
-                                          {lesson.title}
-                                        </h3>
-                                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                                          {lesson.description}
-                                        </p>
-                                        <div className="flex items-center gap-3 text-xs text-gray-500">
-                                          <span>{lesson.duration_minutes} min</span>
-                                          {user && (
-                                            <span className={`font-semibold ${completed ? 'text-green-600' : 'text-gray-400'}`}>
-                                              {completed ? '✓ Completed' : '○ In progress'}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Completion Check */}
-                                      {user && (
+                            {/* Section's Lessons with Z-pattern */}
+                            <div className="flex flex-col gap-6 relative">
+                              {section.lessons.map((lesson, lessonIndexInSection) => {
+                                // Find global index for Z-pattern
+                                const globalIndex = allLessonsFlat.findIndex(l => l.id === lesson.id);
+                                const isLeft = globalIndex % 2 === 0;
+                                const completed = isLessonCompleted(lesson.id);
+                                const isSelected = selectedLessonId === lesson.id;
+                                const accessible = isLessonAccessible(lesson, section.lessons);
+                                
+                                return (
+                                  <div key={lesson.id} className="relative">
+                                    <div className={`flex ${isLeft ? 'justify-start' : 'justify-end'} relative`}>
+                                      {/* Lesson Button */}
+                                      <div 
+                                        className="relative"
+                                        ref={(el) => {
+                                          if (el) {
+                                            lessonRefs.current[lesson.id] = el;
+                                          } else {
+                                            delete lessonRefs.current[lesson.id];
+                                          }
+                                        }}
+                                      >
                                         <button
                                           onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleLessonCompletion(lesson.id);
+                                            if (!accessible) {
+                                              e.stopPropagation();
+                                              return;
+                                            }
+                                            handleLessonClick(lesson, e);
                                           }}
-                                          className="flex-shrink-0"
+                                          disabled={!accessible}
+                                          className={`px-4 py-3 rounded-lg border-2 transition-all duration-200 max-w-xs relative z-0 ${
+                                            !accessible
+                                              ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60'
+                                              : isSelected
+                                                ? 'border-emerald-500 shadow-lg ring-2 ring-emerald-200'
+                                                : completed 
+                                                  ? 'bg-emerald-100 border-emerald-400 hover:bg-emerald-200' 
+                                                  : 'bg-white border-emerald-300 hover:border-emerald-400 hover:shadow-md'
+                                          }`}
                                         >
-                                          {completed ? (
-                                            <CheckCircle className="w-5 h-5 text-green-600" />
-                                          ) : (
-                                            <Circle className="w-5 h-5 text-gray-400 hover:text-emerald-600" />
-                                          )}
+                                          <div className="flex items-center gap-3">
+                                            {/* Lesson Number Badge */}
+                                            <div
+                                              className={`w-10 h-10 rounded flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${
+                                                !accessible 
+                                                  ? 'bg-gray-400' 
+                                                  : completed 
+                                                    ? 'bg-emerald-600' 
+                                                    : 'bg-emerald-600'
+                                              }`}
+                                            >
+                                              {lesson.section_number}-{lesson.lesson_letter}
+                                            </div>
+                                            
+                                            {/* Lesson Title */}
+                                            <h3 className={`font-bold text-sm text-left ${
+                                              !accessible ? 'text-gray-500' : 'text-gray-800'
+                                            }`}>
+                                              {lesson.title}
+                                            </h3>
+                                          </div>
                                         </button>
-                                      )}
+                                        
+                                        {/* Pop-out details box (appears in middle, opposite direction) */}
+                                        {isSelected && selectedLesson && (() => {
+                                          const selectedLessonAccessible = isLessonAccessible(selectedLesson, section.lessons);
+                                          return (
+                                            <div 
+                                              className={`absolute z-20 ${
+                                                // On mobile, always show below; on desktop, show to the side
+                                                'top-full mt-2 left-0 md:top-0 md:mt-0'
+                                              } ${
+                                                // On desktop, alternate sides based on position
+                                                isLeft 
+                                                  ? 'md:left-full md:ml-4 md:right-auto' 
+                                                  : 'md:right-0 md:left-auto md:-translate-x-full md:-mr-4'
+                                              } w-full md:w-72 max-w-sm md:max-w-none bg-red-500 border-2 border-red-500 rounded-lg p-4 shadow-2xl animate-fade-in-opacity`}
+                                              style={{ 
+                                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)'
+                                              }}
+                                            >
+                                              <div className="space-y-3">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                  <div
+                                                    className={`w-10 h-10 rounded flex items-center justify-center text-white font-bold text-xs ${
+                                                      !selectedLessonAccessible
+                                                        ? 'bg-gray-400'
+                                                        : isLessonCompleted(selectedLesson.id) 
+                                                          ? 'bg-emerald-600' 
+                                                          : 'bg-emerald-600'
+                                                    }`}
+                                                  >
+                                                    {selectedLesson.section_number}-{selectedLesson.lesson_letter}
+                                                  </div>
+                                                  <h4 className="font-bold text-sm text-white">
+                                                    {selectedLesson.title}
+                                                  </h4>
+                                                </div>
+                                                <p className="text-xs text-white line-clamp-3">
+                                                  {selectedLesson.description}
+                                                </p>
+                                                <div className="flex items-center gap-2 text-xs text-white">
+                                                  <span>{selectedLesson.duration_minutes} min</span>
+                                                  {user && (
+                                                    <span className={`font-semibold ${
+                                                      isLessonCompleted(selectedLesson.id) ? 'text-green-600' : 'text-gray-500'
+                                                    }`}>
+                                                      {isLessonCompleted(selectedLesson.id) ? '✓' : '○'}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                {!selectedLessonAccessible && user && (
+                                                  <p className="text-xs text-white bg-red-600 bg-opacity-50 rounded p-2">
+                                                    Complete the previous lesson in this section to unlock this lesson.
+                                                  </p>
+                                                )}
+                                                <button
+                                                  onClick={() => {
+                                                    if (selectedLessonAccessible) {
+                                                      handleStartLesson(selectedLesson);
+                                                    }
+                                                  }}
+                                                  disabled={!selectedLessonAccessible}
+                                                  className={`w-full mt-2 px-4 py-2 text-xs font-semibold rounded-lg border-2 transition-all shadow-lg flex items-center justify-center ${
+                                                    !selectedLessonAccessible
+                                                      ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed'
+                                                      : 'bg-white text-emerald-600 hover:bg-gray-50 border-emerald-600 hover:shadow-xl'
+                                                  }`}
+                                                  style={selectedLessonAccessible ? { boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1)' } : {}}
+                                                >
+                                                  {!selectedLessonAccessible 
+                                                    ? 'Locked' 
+                                                    : isLessonCompleted(selectedLesson.id) 
+                                                      ? 'Redo Lesson' 
+                                                      : 'Start Lesson'}
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
                                     </div>
-                                  </button>
-                                </div>
-                              );
-                            })}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </div>
+                    
+                    {/* Message for logged-out users about more content */}
+                    {!user && (
+                      <>
+                        <div className="flex justify-center mt-12 mb-8">
+                          <div className="inline-block p-6 rounded-lg bg-amber-50 border-2 border-amber-200 max-w-2xl">
+                            <p className="text-base text-amber-800 text-center">
+                              <span className="font-semibold">Log in to see the rest of the content.</span>
+                              {" "}Create an account to access all modules and track your progress.
+                            </p>
+                            <div className="flex justify-center gap-4 mt-4">
+                              <Link 
+                                to="/login"
+                                className="inline-flex items-center justify-center px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                              >
+                                Log in
+                              </Link>
+                              <Link 
+                                to="/signup"
+                                className="inline-flex items-center justify-center px-6 py-2 bg-white text-emerald-600 border-2 border-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors text-sm font-medium"
+                              >
+                                Sign up
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Preview of inaccessible content (grayed out) */}
+                        {previewSections.length > 0 && (
+                          <div className="space-y-8 opacity-40 pointer-events-none">
+                            {previewSections.slice(0, 2).map((section) => (
+                              <div key={`preview-section-${section.section_number}`} className="space-y-6">
+                                {/* Section Title */}
+                                <div className="text-center mb-6 pt-8 border-t-2 border-gray-300">
+                                  <h3 className="text-xl font-bold text-gray-500">
+                                    Section {section.section_number}: {section.section_title}
+                                  </h3>
+                                </div>
+                                
+                                {/* Section's Lessons with Z-pattern - grayed out */}
+                                <div className="flex flex-col gap-6 relative">
+                                  {section.lessons.slice(0, 3).map((lesson) => {
+                                    // Find global index for Z-pattern
+                                    const globalIndex = allLessonsFlat.findIndex(l => l.id === lesson.id);
+                                    const isLeft = globalIndex % 2 === 0;
+                                    
+                                    return (
+                                      <div key={`preview-${lesson.id}`} className="relative">
+                                        <div className={`flex ${isLeft ? 'justify-start' : 'justify-end'} relative`}>
+                                          {/* Lesson Button - grayed out preview */}
+                                          <div className="relative">
+                                            <div className="px-4 py-3 rounded-lg border-2 border-gray-300 bg-gray-100 max-w-xs relative z-0">
+                                              <div className="flex items-center gap-3">
+                                                {/* Lesson Number Badge */}
+                                                <div className="w-10 h-10 rounded flex items-center justify-center text-white font-bold text-xs flex-shrink-0 bg-gray-400">
+                                                  {lesson.section_number}-{lesson.lesson_letter}
+                                                </div>
+                                                
+                                                {/* Lesson Title */}
+                                                <h3 className="font-bold text-sm text-gray-500 text-left">
+                                                  {lesson.title}
+                                                </h3>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Unit 2 Coming Soon - centered */}
-              <div className="flex justify-center mt-16 mb-12">
+              <div className="flex justify-center mt-16 mb-12 lg:pl-80">
                 <div className="inline-block p-8 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300">
                   <h3 className="text-xl font-semibold text-gray-600 mb-2">
                     Unit 2: Coming Soon
@@ -285,7 +653,7 @@ function Pathway() {
           </section>
 
           {/* Donation Section */}
-          <section className="py-12 px-4 md:px-6 bg-gray-50">
+          <section id="donation-section" className="py-12 px-4 md:px-6 bg-gray-50 lg:pl-80">
             <div className="max-w-4xl mx-auto text-center">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
                 Support Our Mission
@@ -299,7 +667,7 @@ function Pathway() {
           </section>
 
           {/* Footer */}
-          <footer className="bg-gray-100 py-6 text-center text-sm">
+          <footer className="bg-gray-100 py-6 text-center text-sm lg:pl-80">
             <p className="font-semibold">mygrassroutes – Learn. Act. Lead.</p>
             <p className="mt-2 text-xs text-gray-600">
               Copyright © 2025 mygrassroutes

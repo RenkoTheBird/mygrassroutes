@@ -1,10 +1,34 @@
 // Database utility for API operations
 // This connects to the Express server which handles SQLite operations
 
-// Use environment variable if available, otherwise default to localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api` 
-  : 'http://localhost:3001/api';
+// Determine API base URL:
+// - In development (localhost), always use proxy for better performance
+// - Only use VITE_API_URL if it's explicitly set AND we're not on localhost
+// - Otherwise use relative URLs (proxied by Vite)
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || 
+   window.location.hostname === '127.0.0.1' || 
+   window.location.hostname === '');
+
+const hasNgrokUrl = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.includes('ngrok');
+
+// In development on localhost, always use the proxy (ignore VITE_API_URL if it's ngrok)
+const API_BASE_URL = (isLocalhost && hasNgrokUrl)
+  ? '/api'  // Prefer proxy in development, even if ngrok URL is set
+  : (import.meta.env.VITE_API_URL 
+      ? `${import.meta.env.VITE_API_URL}/api` 
+      : '/api');
+
+// Log the API configuration for debugging
+if (typeof window !== 'undefined') {
+  console.log('[Database] API configuration:', {
+    isLocalhost,
+    hasNgrokUrl,
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    API_BASE_URL,
+    hostname: window.location.hostname
+  });
+}
 
 class Database {
   constructor() {
@@ -17,15 +41,28 @@ class Database {
     
     // Test connection to the API
     try {
-      const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+      const healthUrl = API_BASE_URL === '/api' 
+        ? '/health'  // Use relative URL for proxy
+        : `${API_BASE_URL.replace('/api', '')}/health`;  // Use absolute URL if VITE_API_URL is set
+      console.log('Database: Testing connection to:', healthUrl);
+      const response = await fetch(healthUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Database: Health check response status:', response.status);
       if (!response.ok) {
-        throw new Error('API server not available');
+        throw new Error(`API server not available: ${response.status} ${response.statusText}`);
       }
+      const data = await response.json();
+      console.log('Database: Health check response:', data);
       this.isInitialized = true;
     } catch (error) {
-      console.error('Failed to connect to database API:', error);
+      console.error('Database: Failed to connect to database API:', error);
+      console.error('Database: This might be normal if the server is still starting. Requests will be retried.');
       // Don't throw error, just mark as initialized and let individual requests handle errors
-    this.isInitialized = true;
+      this.isInitialized = true;
     }
   }
 

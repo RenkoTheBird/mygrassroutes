@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 export default function NotFoundPage() {
   return (
@@ -10,10 +11,6 @@ export default function NotFoundPage() {
             0% { transform: translateY(0px) rotate(0deg); }
             50% { transform: translateY(-20px) rotate(20deg); }
             100% { transform: translateY(0px) rotate(0deg); }
-          }
-          .leaf-shape {
-            clip-path: ellipse(55% 30% at 50% 50%);
-            background: radial-gradient(circle at center, #6BBF59 0%, #497A3A 100%);
           }
         `}
       </style>
@@ -27,24 +24,36 @@ export default function NotFoundPage() {
           <p className="text-lg md:text-xl text-[#7C4F2B] mb-6">
             We couldn’t find that page.
           </p>
-          <a
-            href="/"
+          <Link
+            to="/"
             className="inline-block bg-[#497A3A] hover:bg-[#365d2b] text-white font-bold py-3 px-6 rounded-lg transition"
           >
             Return Home
-          </a>
+          </Link>
         </div>
 
         {/* Right Section */}
         <div className="flex-1 flex items-center justify-center relative mt-6 md:mt-0">
           <img
-            src="../assets/leaf.svg"
+            src="/assets/leaf.svg"
             alt="Tree"
             className="max-w-full h-auto"
           />
-          <div className="absolute w-10 h-10 opacity-60 leaf-shape animate-[float_6s_ease-in-out_infinite] top-[10%] left-[20%]"></div>
-          <div className="absolute w-10 h-10 opacity-60 leaf-shape animate-[float_6s_ease-in-out_infinite] top-[50%] left-[10%] [animation-delay:1.5s]"></div>
-          <div className="absolute w-10 h-10 opacity-60 leaf-shape animate-[float_6s_ease-in-out_infinite] bottom-[15%] left-[30%] [animation-delay:3s]"></div>
+          <img
+            src="/assets/leaf.svg"
+            alt="Floating leaf"
+            className="absolute w-10 h-10 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[10%] left-[20%]"
+          />
+          <img
+            src="/assets/leaf.svg"
+            alt="Floating leaf"
+            className="absolute w-10 h-10 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[50%] left-[10%] [animation-delay:1.5s]"
+          />
+          <img
+            src="/assets/leaf.svg"
+            alt="Floating leaf"
+            className="absolute w-10 h-10 opacity-60 animate-[float_6s_ease-in-out_infinite] bottom-[15%] left-[30%] [animation-delay:3s]"
+          />
         </div>
       </div>
     </div>

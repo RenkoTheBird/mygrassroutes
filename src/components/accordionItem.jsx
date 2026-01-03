@@ -5,7 +5,7 @@ export default function AccordionItem({ title, isOpen, onClick, children }) {
       {/* Header */}
       <button
         onClick={onClick}
-        className="w-full flex justify-between items-center py-4 text-left font-semibold text-emerald-700 hover:text-emerald-900 transition"
+        className="w-full flex justify-between items-center py-4 text-left font-semibold text-emerald-600 hover:text-emerald-700 transition"
       >
         <span>{title}</span>
         <span className="text-xl">{isOpen ? "−" : "+"}</span>

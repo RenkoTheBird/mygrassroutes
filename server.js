@@ -5,31 +5,46 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe only if secret key is provided
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null;
 
 // Initialize SQLite database
-const db = new Database(path.join(__dirname, 'src', 'database', 'questions.db'));
+let db;
+try {
+  db = new Database(path.join(__dirname, 'src', 'database', 'questions.db'));
+  console.log('[SERVER] Database initialized successfully');
 
-// Create lesson_content table if it doesn't exist
-db.exec(`
-  CREATE TABLE IF NOT EXISTS lesson_content (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    lesson_id INTEGER NOT NULL,
-    content_type TEXT NOT NULL DEFAULT 'paragraph',
-    content_order INTEGER NOT NULL DEFAULT 1,
-    title TEXT,
-    content TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+  // Create lesson_content table if it doesn't exist
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS lesson_content (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lesson_id INTEGER NOT NULL,
+      content_type TEXT NOT NULL DEFAULT 'paragraph',
+      content_order INTEGER NOT NULL DEFAULT 1,
+      title TEXT,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  console.log('[SERVER] Database tables ready');
 
-// Populate with sample lesson content for the first few lessons
-populateSampleLessonContent();
+  // Populate with sample lesson content for the first few lessons
+  populateSampleLessonContent();
+} catch (error) {
+  console.error('[SERVER] ERROR: Failed to initialize database:', error);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,9 +53,24 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[SERVER] ${req.method} ${req.path} - ${new Date().toISOString()}`);
+  next();
+});
+
+// Check if we're in production
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Stripe Checkout endpoint
 app.post('/create-checkout-session', async (req, res) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({ 
+        error: 'Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.' 
+      });
+    }
+
     const { amount, currency = 'usd' } = req.body;
 
     // Validate amount (minimum $1)
@@ -68,7 +98,8 @@ app.post('/create-checkout-session', async (req, res) => {
       cancel_url: `${req.headers.origin}/pathway?payment=cancelled`,
     });
 
-    res.json({ id: session.id });
+    // Return both id and url for compatibility
+    res.json({ id: session.id, url: session.url });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
@@ -261,6 +292,7 @@ app.get('/api/lessons/:sectionId', (req, res) => {
   try {
     const { sectionId } = req.params;
     const sectionNum = parseInt(sectionId);
+    console.log(`[SERVER] /api/lessons/${sectionId} - Fetching lessons (parsed as sectionNum: ${sectionNum})`);
     
     // Determine which unit this section belongs to
     // Assuming 7 sections per unit: sections 1-7 = Unit 1, sections 8-14 = Unit 2, etc.
@@ -697,10 +729,12 @@ app.get('/api/lessons/:sectionId', (req, res) => {
       { id: baseId + 5, section_id: sectionId, unit_id: unitId, lesson_letter: 'E', ...sectionTemplate.E, duration_minutes: 20, order_index: 5, section_letter: sectionLetter },
       { id: baseId + 6, section_id: sectionId, unit_id: unitId, lesson_letter: 'F', ...sectionTemplate.F, duration_minutes: 30, order_index: 6, section_letter: sectionLetter }
     ];
+    console.log(`[SERVER] Returning ${lessons.length} lessons for sectionId: ${sectionId}`);
     res.json(lessons);
   } catch (error) {
-    console.error('Error fetching lessons:', error);
-    res.status(500).json({ error: 'Failed to fetch lessons' });
+    console.error('[SERVER] Error fetching lessons:', error);
+    console.error('[SERVER] Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to fetch lessons', details: error.message });
   }
 });
 
@@ -1108,24 +1142,51 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-// Root endpoint - helpful error message
-app.get('/', (req, res) => {
-  res.status(404).json({ 
-    error: 'This is the backend API server. Please use the frontend URL instead.',
-    message: 'The frontend should be accessed through the ngrok frontend tunnel URL.',
-    endpoints: [
-      '/health - Health check',
-      '/api/sources - Get sources',
-      '/api/units - Get units',
-      '/api/lessons/:unitId/:sectionId - Get lessons',
-      '/create-checkout-session - Stripe checkout'
-    ]
+// Serve static files from the dist directory in production (after API routes)
+if (isProduction) {
+  const distPath = path.join(__dirname, 'dist');
+  app.use(express.static(distPath));
+  console.log(`[SERVER] Serving static files from: ${distPath}`);
+  
+  // Serve React app for all non-API routes (catch-all for client-side routing)
+  app.get('*', (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/create-checkout-session')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   });
-});
+} else {
+  // Root endpoint - helpful error message in development
+  app.get('/', (req, res) => {
+    res.status(404).json({ 
+      error: 'This is the backend API server. Please use the frontend URL instead.',
+      message: 'The frontend should be accessed through the ngrok frontend tunnel URL.',
+      endpoints: [
+        '/health - Health check',
+        '/api/sources - Get sources',
+        '/api/units - Get units',
+        '/api/lessons/:unitId/:sectionId - Get lessons',
+        '/create-checkout-session - Stripe checkout'
+      ]
+    });
+  });
+}
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Network access: http://${getLocalIP()}:${PORT}`);
+  console.log(`[SERVER] Server running on http://localhost:${PORT}`);
+  console.log(`[SERVER] Network access: http://${getLocalIP()}:${PORT}`);
+  console.log(`[SERVER] API endpoints available at http://localhost:${PORT}/api`);
+  if (!stripe) {
+    console.warn(`[SERVER] WARNING: Stripe is not configured. Payment features will not work.`);
+  }
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[SERVER] ERROR: Port ${PORT} is already in use. Please stop the other process or change the PORT environment variable.`);
+  } else {
+    console.error(`[SERVER] ERROR: Failed to start server:`, err);
+  }
+  process.exit(1);
 });
 
 function getLocalIP() {

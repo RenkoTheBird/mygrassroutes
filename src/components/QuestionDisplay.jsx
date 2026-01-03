@@ -30,29 +30,58 @@ const QuestionDisplay = ({
     setShakeAnimation(false);
   }, [question?.id]);
 
-  const handleAnswer = (answer) => {
+  const handleAnswerSelect = (answer) => {
     if (isAnswered) return;
 
-    let correct = false;
-    
     switch (question.question_type) {
       case 'multiple_choice':
         setSelectedAnswer(answer);
-        correct = answer === question.correct_answer;
         break;
       case 'true_false':
         setSelectedAnswer(answer);
-        correct = answer === question.correct_answer;
         break;
       case 'select_all':
         const newAnswers = selectedAnswers.includes(answer)
           ? selectedAnswers.filter(a => a !== answer)
           : [...selectedAnswers, answer];
         setSelectedAnswers(newAnswers);
-        return; // Don't submit yet for select all
+        break;
       case 'fill_blank':
         setFillBlankAnswer(answer);
-        correct = answer.toLowerCase().trim() === question.correct_answer.toLowerCase().trim();
+        break;
+      default:
+        return;
+    }
+  };
+
+  const handleSubmit = () => {
+    if (isAnswered) return;
+
+    let correct = false;
+    let userAnswerValue = '';
+
+    switch (question.question_type) {
+      case 'multiple_choice':
+        if (!selectedAnswer) return;
+        userAnswerValue = selectedAnswer;
+        correct = selectedAnswer === question.correct_answer;
+        break;
+      case 'true_false':
+        if (!selectedAnswer) return;
+        userAnswerValue = selectedAnswer;
+        correct = selectedAnswer === question.correct_answer;
+        break;
+      case 'select_all':
+        if (selectedAnswers.length === 0) return;
+        userAnswerValue = selectedAnswers;
+        const correctAnswers = question.correct_answer.split(',').map(a => a.trim());
+        correct = correctAnswers.every(answer => selectedAnswers.includes(answer)) &&
+                 selectedAnswers.every(answer => correctAnswers.includes(answer));
+        break;
+      case 'fill_blank':
+        if (!fillBlankAnswer) return;
+        userAnswerValue = fillBlankAnswer;
+        correct = fillBlankAnswer.toLowerCase().trim() === question.correct_answer.toLowerCase().trim();
         break;
       default:
         return;
@@ -65,13 +94,13 @@ const QuestionDisplay = ({
       setShowExplanation(true);
     } else {
       setShakeAnimation(true);
-      setTimeout(() => setShakeAnimation(false), 500);
+      setTimeout(() => setShakeAnimation(false), 300);
     }
 
     if (onAnswer) {
       onAnswer({
         questionId: question.id,
-        userAnswer: question.question_type === 'select_all' ? selectedAnswers : answer,
+        userAnswer: userAnswerValue,
         isCorrect: correct,
         questionType: question.question_type
       });
@@ -89,32 +118,6 @@ const QuestionDisplay = ({
     setShakeAnimation(false);
   };
 
-  const handleSelectAllSubmit = () => {
-    if (isAnswered || selectedAnswers.length === 0) return;
-
-    const correctAnswers = question.correct_answer.split(',').map(a => a.trim());
-    const isCorrectAnswer = correctAnswers.every(answer => selectedAnswers.includes(answer)) &&
-                           selectedAnswers.every(answer => correctAnswers.includes(answer));
-    
-    setIsAnswered(true);
-    setIsCorrect(isCorrectAnswer);
-    
-    if (isCorrectAnswer) {
-      setShowExplanation(true);
-    } else {
-      setShakeAnimation(true);
-      setTimeout(() => setShakeAnimation(false), 500);
-    }
-
-    if (onAnswer) {
-      onAnswer({
-        questionId: question.id,
-        userAnswer: selectedAnswers,
-        isCorrect: isCorrectAnswer,
-        questionType: question.question_type
-      });
-    }
-  };
 
   const getAnswerButtonClass = (option, index, optionKey) => {
     const baseClass = "w-full p-4 text-left rounded-lg border-2 transition-all duration-200 hover:shadow-md";
@@ -163,24 +166,36 @@ const QuestionDisplay = ({
           <div className="space-y-3">
             {question.options.map((option, index) => {
               const optionKey = String.fromCharCode(65 + index); // A, B, C, D
+              const isSelected = selectedAnswer === optionKey;
               return (
                 <button
                   key={index}
-                  onClick={() => handleAnswer(optionKey)}
-                  className={getAnswerButtonClass(option, index, optionKey)}
+                  onClick={() => handleAnswerSelect(optionKey)}
+                  className={`w-full p-4 text-left rounded-lg border-2 transition-all duration-200 ${
+                    !isAnswered ? (
+                      isSelected 
+                        ? 'border-emerald-500 bg-emerald-100 text-emerald-800' 
+                        : 'border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'
+                    ) : (
+                      getAnswerButtonClass(option, index, optionKey)
+                    )
+                  }`}
                   disabled={isAnswered}
                 >
                   <div className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                      !isAnswered ? 'bg-gray-200 text-gray-600' :
-                      isCorrect ? (
-                        optionKey === question.correct_answer && optionKey === selectedAnswer ? 'bg-green-500 text-white' :
-                        optionKey === question.correct_answer ? 'bg-green-500 text-white' :
-                        optionKey === selectedAnswer ? 'bg-green-500 text-white' :
-                        'bg-gray-200 text-gray-600'
+                      !isAnswered ? (
+                        isSelected ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-600'
                       ) : (
-                        optionKey === selectedAnswer ? 'bg-red-500 text-white' :
-                        'bg-gray-200 text-gray-600'
+                        isCorrect ? (
+                          optionKey === question.correct_answer && optionKey === selectedAnswer ? 'bg-green-500 text-white' :
+                          optionKey === question.correct_answer ? 'bg-green-500 text-white' :
+                          optionKey === selectedAnswer ? 'bg-green-500 text-white' :
+                          'bg-gray-200 text-gray-600'
+                        ) : (
+                          optionKey === selectedAnswer ? 'bg-red-500 text-white' :
+                          'bg-gray-200 text-gray-600'
+                        )
                       )
                     }`}>
                       {optionKey}
@@ -197,31 +212,70 @@ const QuestionDisplay = ({
                 </button>
               );
             })}
+            {selectedAnswer && (
+              <button
+                onClick={handleSubmit}
+                disabled={isAnswered && isCorrect}
+                className={`w-full py-3 px-6 rounded-lg font-medium transition-colors shadow-md ${
+                  isAnswered && isCorrect
+                    ? 'bg-gray-200 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                    : 'bg-white text-emerald-600 border-2 border-emerald-600 hover:bg-emerald-50'
+                }`}
+              >
+                Submit Answer
+              </button>
+            )}
           </div>
         );
 
       case 'true_false':
         return (
-          <div className="grid grid-cols-2 gap-4">
-            {['True', 'False'].map((option) => (
+          <div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {['True', 'False'].map((option) => {
+                const isSelected = selectedAnswer === option;
+                return (
+                  <button
+                    key={option}
+                    onClick={() => handleAnswerSelect(option)}
+                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                      !isAnswered ? (
+                        isSelected 
+                          ? 'border-emerald-500 bg-emerald-100 text-emerald-800' 
+                          : 'border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'
+                      ) : (
+                        getAnswerButtonClass(option, 0, option)
+                      )
+                    }`}
+                    disabled={isAnswered}
+                  >
+                    <div className="flex items-center justify-center space-x-2">
+                      <span className="text-lg font-semibold">{option}</span>
+                      {isAnswered && selectedAnswer === option && (
+                        option === question.correct_answer ? (
+                          <Check className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-red-600" />
+                        )
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedAnswer && (
               <button
-                key={option}
-                onClick={() => handleAnswer(option)}
-                className={getAnswerButtonClass(option, 0, option)}
-                disabled={isAnswered}
+                onClick={handleSubmit}
+                disabled={isAnswered && isCorrect}
+                className={`w-full py-3 px-6 rounded-lg font-medium transition-colors shadow-md ${
+                  isAnswered && isCorrect
+                    ? 'bg-gray-200 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                    : 'bg-white text-emerald-600 border-2 border-emerald-600 hover:bg-emerald-50'
+                }`}
               >
-                <div className="flex items-center justify-center space-x-2">
-                  <span className="text-lg font-semibold">{option}</span>
-                  {isAnswered && selectedAnswer === option && (
-                    option === question.correct_answer ? (
-                      <Check className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-red-600" />
-                    )
-                  )}
-                </div>
+                Submit Answer
               </button>
-            ))}
+            )}
           </div>
         );
 
@@ -275,10 +329,15 @@ const QuestionDisplay = ({
                 </button>
               );
             })}
-            {!isAnswered && selectedAnswers.length > 0 && (
+            {selectedAnswers.length > 0 && (
               <button
-                onClick={handleSelectAllSubmit}
-                className="w-full bg-emerald-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+                onClick={handleSubmit}
+                disabled={isAnswered && isCorrect}
+                className={`w-full py-3 px-6 rounded-lg font-medium transition-colors shadow-md ${
+                  isAnswered && isCorrect
+                    ? 'bg-gray-200 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                    : 'bg-white text-emerald-600 border-2 border-emerald-600 hover:bg-emerald-50'
+                }`}
               >
                 Submit Selection
               </button>
@@ -298,7 +357,7 @@ const QuestionDisplay = ({
               type="text"
               value={fillBlankAnswer}
               onChange={(e) => setFillBlankAnswer(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && fillBlankAnswer && handleAnswer(fillBlankAnswer)}
+              onKeyPress={(e) => e.key === 'Enter' && fillBlankAnswer && handleSubmit()}
               placeholder="Enter your answer..."
               className={`w-full p-4 border-2 rounded-lg text-lg ${
                 !isAnswered 
@@ -309,10 +368,15 @@ const QuestionDisplay = ({
               }`}
               disabled={isAnswered}
             />
-            {!isAnswered && fillBlankAnswer && (
+            {fillBlankAnswer && (
               <button
-                onClick={() => handleAnswer(fillBlankAnswer)}
-                className="w-full bg-emerald-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-emerald-700 transition-colors"
+                onClick={handleSubmit}
+                disabled={isAnswered && isCorrect}
+                className={`w-full py-3 px-6 rounded-lg font-medium transition-colors shadow-md ${
+                  isAnswered && isCorrect
+                    ? 'bg-gray-200 text-gray-500 border-2 border-gray-300 cursor-not-allowed'
+                    : 'bg-white text-emerald-600 border-2 border-emerald-600 hover:bg-emerald-50'
+                }`}
               >
                 Submit Answer
               </button>
@@ -345,7 +409,7 @@ const QuestionDisplay = ({
   }
 
   return (
-    <div className={`max-w-4xl mx-auto p-4 md:p-6 bg-white shadow-lg border-4 ${shakeAnimation ? 'animate-shake' : ''}`} style={{ borderColor: '#059669' }}>
+    <div className={`max-w-4xl mx-auto p-4 md:p-6 bg-gray-100 shadow-2xl ${shakeAnimation ? 'animate-shake' : ''}`} style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
       {/* Read Button - Shows lesson information */}
       <ReadButton 
         lessonInfo={lessonInfo} 
@@ -385,54 +449,53 @@ const QuestionDisplay = ({
         </div>
       )}
 
-      {/* Feedback Modal */}
+      {/* Feedback Footer - appears at bottom when correct */}
       {showExplanation && showFeedback && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <Check className="w-5 h-5 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-green-800">Correct!</h3>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-emerald-500 shadow-2xl z-50 max-h-[40vh] overflow-y-auto">
+          <div className="max-w-6xl mx-auto px-6 py-4">
+            {/* Footer Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                  <Check className="w-5 h-5 text-white" />
                 </div>
-                <button
-                  onClick={() => setShowExplanation(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <h3 className="text-xl font-bold text-green-800">Correct!</h3>
               </div>
-
-              {/* Explanation */}
-              <div className="mb-6">
-                <h4 className="text-lg font-semibold text-gray-800 mb-2">Explanation</h4>
-                <p className="text-gray-700 leading-relaxed">
-                  {question.explanation}
-                </p>
-              </div>
-
-              {/* Source */}
-              {question.source && (
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                  <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Source</h4>
-                  <p className="text-gray-700">{question.source}</p>
-                </div>
-              )}
-
-              {/* Next Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={onNext}
-                  className="bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center space-x-2"
-                >
-                  <span>{isLastQuestion ? 'Finish Lesson' : 'Next Question'}</span>
-                  <Check className="w-5 h-5" />
-                </button>
-              </div>
+              <button
+                onClick={onNext}
+                className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center space-x-2"
+              >
+                <span>{isLastQuestion ? 'Finish Lesson' : 'Next Question'}</span>
+                <Check className="w-5 h-5" />
+              </button>
             </div>
+
+            {/* Explanation */}
+            <div className="mb-3">
+              <h4 className="text-lg font-semibold text-gray-800 mb-2">Explanation</h4>
+              <p className="text-gray-700 leading-relaxed">
+                {question.explanation}
+              </p>
+            </div>
+
+            {/* Source */}
+            {question.source && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Source</h4>
+                {question.source.startsWith('http://') || question.source.startsWith('https://') ? (
+                  <a 
+                    href={question.source} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 hover:underline break-all"
+                  >
+                    {question.source}
+                  </a>
+                ) : (
+                  <p className="text-gray-700">{question.source}</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

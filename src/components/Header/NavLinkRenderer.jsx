@@ -11,8 +11,8 @@ export default function NavLinkRenderer({ link, onClick }) {
     return (
       <Link
         to={link.href}
-        className={`px-3 py-2 rounded hover:bg-emerald-700/20 block ${
-          location.pathname === link.href ? "font-bold text-emerald-600" : ""
+        className={`px-3 py-2 rounded hover:bg-emerald-400/30 block ${
+          location.pathname === link.href ? "font-bold text-emerald-500" : ""
         }`}
         onClick={onClick}
       >
@@ -24,7 +24,7 @@ export default function NavLinkRenderer({ link, onClick }) {
   return (
     <a
       href={link.href}
-      className="px-3 py-2 rounded hover:bg-emerald-700/20 block"
+      className="px-3 py-2 rounded hover:bg-emerald-400/30 block"
       onClick={onClick}
     >
       {link.label}

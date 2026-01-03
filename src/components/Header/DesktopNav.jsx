@@ -13,7 +13,7 @@ export default function DesktopNav({ navLinks, actions, activeDropdown, setActiv
               onMouseEnter={() => setActiveDropdown(index)}
               onMouseLeave={() => setActiveDropdown(null)}
             >
-              <button className="flex items-center gap-1 px-3 py-2 hover:bg-emerald-700/20 rounded">
+              <button className="flex items-center gap-1 px-3 py-2 hover:bg-emerald-400/30 rounded">
                 {link.label} <ChevronDown size={16} />
               </button>
               {activeDropdown === index && (
@@ -30,7 +30,7 @@ export default function DesktopNav({ navLinks, actions, activeDropdown, setActiv
         }
         return <div key={index}><NavLinkRenderer link={link} /></div>;
       })}
-      {actions && <div className="ml-4">{actions}</div>}
+      {actions && <div className="ml-4 flex items-center gap-2">{actions}</div>}
     </nav>
   );
 }

@@ -7,6 +7,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   sendEmailVerification,
+  fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import { auth } from "../firebase";
 
@@ -36,6 +37,20 @@ export default function Signup() {
     }
 
     try {
+      // Check if email is already registered with a different sign-in method
+      const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+      
+      if (signInMethods.length > 0) {
+        if (signInMethods.includes("google.com")) {
+          setError("This email is already registered with Google. Please use 'Sign up with Google' or login with Google instead.");
+          return;
+        }
+        if (signInMethods.includes("password")) {
+          setError("An account with this email already exists. Please login instead.");
+          return;
+        }
+      }
+      
       // Create user account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
@@ -58,36 +73,66 @@ export default function Signup() {
         navigate("/");
       }, 2000);
     } catch (err) {
-      setError(err.message);
+      if (err.code === "auth/email-already-in-use") {
+        setError("An account with this email already exists. Please login instead.");
+      } else {
+        setError(err.message);
+      }
     }
   };
 
   const handleGoogleSignup = async () => {
+    setError("");
+    setSuccess("");
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const userEmail = result.user.email;
+      
+      // After successful Google signup/login, check if this email was originally registered with password
+      // If so, this means they're trying to use the wrong signup method
+      const signInMethods = await fetchSignInMethodsForEmail(auth, userEmail);
+      
+      // Check if password provider exists
+      const hasPasswordProvider = signInMethods.includes("password");
+      
+      if (hasPasswordProvider) {
+        // User has password provider but signed up/logged in with Google
+        // Sign them out and show error
+        await auth.signOut();
+        setError("This email is already registered with email/password. Please use the email and password login instead, or sign up with a different email.");
+        return;
+      }
+      
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      if (err.code === "auth/account-exists-with-different-credential") {
+        setError("This email is already registered with email/password. Please use the email and password login instead.");
+      } else if (err.code === "auth/popup-closed-by-user") {
+        // User closed the popup, don't show error
+        return;
+      } else {
+        setError(err.message);
+      }
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#FDFBF6]">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="absolute top-6 left-1/2 -translate-x-1/2">
         <Link to="/" className="inline-flex items-center gap-2 hover:opacity-90 transition">
           <img src="/assets/headerlogo.png" alt="mygrassroutes logo" className="h-10" />
         </Link>
       </div>
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-md w-full max-w-md mt-16 mx-4 md:mx-0">
-        <h1 className="text-xl md:text-2xl font-semibold text-[#F9A825] text-center mb-6 font-[Poppins]">
+        <h1 className="text-xl md:text-2xl font-semibold text-emerald-700 text-center mb-6">
           Sign Up
         </h1>
         <form onSubmit={handleSignup} className="space-y-4">
           <input
             type="text"
             placeholder="Username"
-            className="w-full px-4 py-3 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#F9A825]"
+            className="w-full px-4 py-3 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -95,7 +140,7 @@ export default function Signup() {
           <input
             type="email"
             placeholder="Email"
-            className="w-full px-4 py-3 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#F9A825]"
+            className="w-full px-4 py-3 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -103,7 +148,7 @@ export default function Signup() {
           <input
             type={showPassword ? "text" : "password"}
             placeholder="Password"
-            className="w-full px-4 py-3 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#F9A825]"
+            className="w-full px-4 py-3 border rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -126,7 +171,7 @@ export default function Signup() {
 
           <button
             type="submit"
-            className="w-full bg-[#F9A825] text-white py-3 rounded-lg font-bold hover:bg-[#c2871c] transition"
+            className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold hover:bg-emerald-500 transition"
           >
             Sign Up
           </button>
@@ -148,7 +193,7 @@ export default function Signup() {
         {/*"Already have an account"*/}
         <p className="mt-4 text-center text-sm">
         Already have an account?{" "}
-            <Link to="/login" className="text-[#F9A825] font-semibold hover:underline">
+            <Link to="/login" className="text-emerald-600 font-semibold hover:underline">
                 Login
             </Link>
         </p>

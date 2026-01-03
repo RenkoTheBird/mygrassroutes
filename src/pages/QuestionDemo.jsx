@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { X } from 'lucide-react';
 import QuestionDisplay from '../components/QuestionDisplay';
 import database from '../database/database';
 import { useUserProgress } from '../hooks/useUserProgress';
@@ -106,11 +107,6 @@ const QuestionDemo = () => {
       setLessonCompleted(true);
       console.log('All answers:', answers);
     }
-  };
-
-  const resetLesson = () => {
-    setCurrentQuestionIndex(0);
-    setAnswers([]);
   };
 
   // Helper function to generate HTML from lesson content
@@ -255,19 +251,6 @@ const QuestionDemo = () => {
           >
             Return to Pathway
           </Link>
-
-          {/* Optional: View Answers Button */}
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                console.log('Answers:', answers);
-                alert('Check console for detailed answers');
-              }}
-              className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
-            >
-              View Detailed Results (Console)
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -279,7 +262,15 @@ const QuestionDemo = () => {
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-50">
       {/* Fixed Progress Bar at Top */}
-      <div className="bg-white shadow-sm border-b-4 flex-shrink-0" style={{ borderColor: '#059669' }}>
+      <div className="bg-white shadow-sm flex-shrink-0 relative">
+        {/* X button in top left */}
+        <Link
+          to="/pathway"
+          className="absolute left-4 top-3 p-2 hover:bg-gray-100 rounded-full transition-colors z-10"
+          aria-label="Back to Pathway"
+        >
+          <X className="w-6 h-6 text-gray-600" />
+        </Link>
         <div className="max-w-6xl mx-auto px-6 py-2">
           <div className="mb-1">
             <span className="text-sm text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</span>
@@ -293,9 +284,9 @@ const QuestionDemo = () => {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto min-h-0">
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          {/* Question Display */}
+      <main className="flex-1 overflow-y-auto min-h-0 flex items-center justify-center">
+        <div className="max-w-6xl mx-auto px-6 py-6 w-full">
+          {/* Question Display - Centered */}
           <QuestionDisplay
             question={currentQuestion}
             onAnswer={handleAnswer}
@@ -305,22 +296,6 @@ const QuestionDemo = () => {
             questionNumber={currentQuestionIndex + 1}
             lessonInfo={lessonInfo}
           />
-
-          {/* Controls */}
-          <div className="mt-8 flex justify-center space-x-4">
-            <button
-              onClick={resetLesson}
-              className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Reset Lesson
-            </button>
-            <Link
-              to="/pathway"
-              className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-            >
-              Back to Pathway
-            </Link>
-          </div>
         </div>
       </main>
     </div>

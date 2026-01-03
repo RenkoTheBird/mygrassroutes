@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
 import { STRIPE_CONFIG } from '../config/stripe';
 
 const DonationForm = () => {
@@ -7,9 +6,6 @@ const DonationForm = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Initialize Stripe
-  const stripePromise = loadStripe(STRIPE_CONFIG.publishableKey);
 
   const predefinedAmounts = [5, 10, 25, 50, 100];
 
@@ -36,12 +32,14 @@ const DonationForm = () => {
     setError('');
 
     try {
-      const stripe = await stripePromise;
-      
       // Convert to cents for Stripe
       const amountInCents = Math.round(parseFloat(amount) * 100);
 
-      const response = await fetch(`${STRIPE_CONFIG.apiUrl}/create-checkout-session`, {
+      // Determine API URL - use relative path if on localhost (to use Vite proxy), otherwise use full URL
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const apiUrl = isLocalhost ? '/create-checkout-session' : `${STRIPE_CONFIG.apiUrl}/create-checkout-session`;
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,23 +50,32 @@ const DonationForm = () => {
         }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
       const session = await response.json();
 
       if (session.error) {
         throw new Error(session.error);
       }
 
-      // Redirect to Stripe Checkout
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: session.id,
-      });
-
-      if (error) {
-        throw new Error(error.message);
+      // Check if we have a URL to redirect to
+      if (!session.url) {
+        throw new Error('No checkout URL received from server');
       }
+
+      // Redirect to Stripe Checkout using the session URL
+      window.location.href = session.url;
     } catch (err) {
       console.error('Error:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
+      // Provide more helpful error messages
+      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        setError('Unable to connect to the server. Please make sure the backend server is running on port 3001.');
+      } else {
+        setError(err.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

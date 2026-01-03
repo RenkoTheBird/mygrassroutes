@@ -11,14 +11,16 @@ import Sources from "./pages/Sources";
 import QuestionDemo from "./pages/QuestionDemo";
 import Dashboard from "./pages/Dashboard";
 import Contact from "./pages/Contact";
+import ResetPassword from "./pages/ResetPassword";
+import NotFoundPage from "./pages/NotFoundPage";
 
-import { AuthProvider } from "./pages/AuthProvider";
+import { AuthProvider, useAuth } from "./pages/AuthProvider";
 import ProtectedRoute from "./pages/ProtectedRoute";
 
 // Custom hook to get location (only works inside Router context)
 function useHideHeader() {
   const location = useLocation();
-  return location.pathname === "/login" || location.pathname === "/signup" || location.pathname === "/questions" || location.pathname === "/dashboard" || location.pathname === "/pathway" || location.pathname === "/contact";
+  return location.pathname === "/login" || location.pathname === "/signup" || location.pathname === "/reset-password" || location.pathname === "/questions" || location.pathname === "/dashboard" || location.pathname === "/pathway" || location.pathname === "/contact";
 }
 
 function AppContent() {
@@ -27,6 +29,7 @@ function AppContent() {
   const sectionRefs = useRef([]);
   const hasShownLoggedOutMessage = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
 
   const toggleAccordion = (index) => {
     setOpenIndexes((prev) =>
@@ -68,8 +71,13 @@ function AppContent() {
       window.scrollTo(0, 0);
     }, [location]);
     
-    // Fade-in scroll animation effect
+    // Fade-in scroll animation effect - re-run when on homepage
     useEffect(() => {
+      // Only set up observer if we're on the homepage
+      if (location.pathname !== "/") {
+        return;
+      }
+
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
@@ -84,34 +92,36 @@ function AppContent() {
         }
       );
 
-      // Reset all elements to initial state first
-      sectionRefs.current.forEach((ref) => {
-        if (ref) {
-          ref.classList.remove('fade-in-visible');
-        }
+      // Use double requestAnimationFrame to ensure DOM elements are fully rendered
+      // and refs are properly assigned
+      let rafId1, rafId2;
+      rafId1 = requestAnimationFrame(() => {
+        rafId2 = requestAnimationFrame(() => {
+          sectionRefs.current.forEach((ref) => {
+            if (ref) {
+              const rect = ref.getBoundingClientRect();
+              const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+              if (isVisible) {
+                // Immediately show if already visible
+                ref.classList.add('fade-in-visible');
+              } else {
+                // Reset to initial state only if not visible
+                ref.classList.remove('fade-in-visible');
+              }
+              observer.observe(ref);
+            }
+          });
+        });
       });
 
-      // Use setTimeout to ensure DOM elements are fully rendered
-      const timeoutId = setTimeout(() => {
-        sectionRefs.current.forEach((ref) => {
-          if (ref) {
-            const rect = ref.getBoundingClientRect();
-            const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-            if (isVisible) {
-              ref.classList.add('fade-in-visible');
-            }
-            observer.observe(ref);
-          }
-        });
-      }, 50);
-
       return () => {
-        clearTimeout(timeoutId);
+        if (rafId1) cancelAnimationFrame(rafId1);
+        if (rafId2) cancelAnimationFrame(rafId2);
         sectionRefs.current.forEach((ref) => {
           if (ref) observer.unobserve(ref);
         });
       };
-    }, []);
+    }, [location.pathname]);
 
     return (
       <>
@@ -141,6 +151,12 @@ function AppContent() {
               transform: translateY(0);
             }
           }
+          
+          @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(20deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+          }
         `}</style>
         <div className="bg-gray-50">
         {!hideHeader && (
@@ -149,7 +165,7 @@ function AppContent() {
             navLinks={[
               { label: "About", href: "/about" },
               { label: "Sources", href: "/sources" },
-              { label: "Pathway", href: "/pathway" },
+              ...(user ? [] : [{ label: "Pathway", href: "/pathway" }]),
               { label: "Contact", href: "/contact" },
             ]}
             actions={<HeaderActions />}
@@ -187,7 +203,7 @@ function AppContent() {
                               backgroundPosition: "center",
                             }}
                           >
-                            <div className="absolute inset-0 bg-emerald-700/70 rounded-2xl"></div>
+                            <div className="absolute inset-0 bg-emerald-600/70 rounded-2xl"></div>
                             
                             {/* Left Side - Text Content */}
                             <div className="relative z-10 w-full md:w-1/2 flex flex-col items-start justify-center p-4 md:p-8">
@@ -197,7 +213,7 @@ function AppContent() {
                               <p className="text-sm md:text-base mb-6 text-white text-left max-w-md">
                                 Create change right from your screen.
                               </p>
-                              <Link to="/pathway" className="inline-block bg-white text-emerald-700 font-medium px-4 md:px-5 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
+                              <Link to="/pathway" className="inline-block bg-white text-emerald-600 font-medium px-4 md:px-5 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
                                 View The Pathway Now →
                               </Link>
                             </div>
@@ -283,44 +299,112 @@ function AppContent() {
                   {/* Problem / Agitation */}
                   <section 
                     ref={el => sectionRefs.current[0] = el}
-                    className="container mx-auto py-12 bg-emerald-50 px-4 md:px-6 fade-in"
+                    className="container mx-auto py-12 bg-emerald-200 px-4 md:px-6 fade-in"
                   >
-                    <h2 className="text-center text-2xl md:text-3xl font-bold text-emerald-700">
-                      Everyone tells you to "get involved." But how?
-                    </h2>
-                    <p className="mt-4 max-w-3xl mx-auto text-center text-gray-700 leading-relaxed text-sm md:text-base px-2 md:px-0">
-                      Politics feels distant, confusing, corrupt, and rigged for insiders. 
-                      The system is hard to navigate. And most sites just explain, 
-                      without telling you how to create the change you want.
-                    </p>
+                    <div className="flex flex-col md:flex-row gap-8 items-center">
+                      {/* Left Side - Falling Leaf Animation */}
+                      <div className="w-full md:w-1/2 flex items-center justify-center relative h-64 md:h-80">
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[10%] left-[20%]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[30%] left-[10%] [animation-delay:1.5s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 [animation-delay:3s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[45%] left-[45%] -translate-x-1/2 -translate-y-1/2 [animation-delay:4.5s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[20%] right-[25%] [animation-delay:2s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] bottom-[15%] right-[20%] [animation-delay:5s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[5%] left-[40%] [animation-delay:0.8s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[40%] left-[5%] [animation-delay:2.5s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[60%] left-[25%] [animation-delay:3.8s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] bottom-[10%] left-[35%] [animation-delay:5.5s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[15%] right-[10%] [animation-delay:1.2s]"
+                        />
+                        <img 
+                          src="/assets/leaf.svg" 
+                          alt="Falling leaf" 
+                          className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] bottom-[5%] right-[35%] [animation-delay:4.2s]"
+                        />
+                      </div>
+                      {/* Right Side - Text Content */}
+                      <div className="w-full md:w-1/2 flex flex-col justify-center px-4 md:px-6 text-right">
+                        <h2 className="text-2xl md:text-3xl font-bold text-emerald-700">
+                          Everyone tells you to "get involved." But how?
+                        </h2>
+                        <p className="mt-4 text-gray-700 leading-relaxed text-sm md:text-base">
+                          Politics feels distant, confusing, corrupt, and rigged for insiders. 
+                          The system is hard to navigate. And most sites just explain, 
+                          without telling you how to create the change you want.
+                        </p>
+                      </div>
+                    </div>
                   </section>
 
                   {/* Solutions */}
                   <section 
                     ref={el => sectionRefs.current[1] = el}
-                    className="container mx-auto py-12 bg-emerald-100 px-4 md:px-6 fade-in"
+                    className="container mx-auto py-12 bg-white px-4 md:px-6 fade-in"
                   >
                     <div className="flex flex-col md:flex-row gap-8 items-center">
                       {/* Left Side - Text Content */}
-                      <div className="w-full md:w-1/2 text-center">
-                        <h2 className="text-2xl md:text-3xl font-bold text-emerald-800 mb-6">
+                      <div className="w-full md:w-1/2 flex flex-col justify-center px-4 md:px-6">
+                        <h2 className="text-2xl md:text-3xl font-bold text-emerald-700 mb-6">
                           mygrassroutes turns learning into action.
                         </h2>
-                        <ul className="space-y-3 text-gray-800 text-sm md:text-base mb-6 max-w-lg mx-auto">
+                        <ul className="space-y-3 text-gray-800 text-sm md:text-base mb-6">
                           <li>✅ Learn by doing, not memorizing</li>
                           <li>✅ Discover exactly where you can make change</li>
                           <li>✅ Unlock actions that matter now</li>
                           <li>✅ Designed for first-timers, built for changemakers</li>
                         </ul>
-                        <div className="flex justify-center">
-                          <Link to="/pathway" className="inline-block bg-emerald-700 text-white px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-800 transition text-sm md:text-base">
+                        <div>
+                          <Link to="/pathway" className="inline-block bg-emerald-600 text-white px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-500 transition text-sm md:text-base">
                             Get Started Now →
                           </Link>
                         </div>
                       </div>
 
                       {/* Right Side - Sample Question Card */}
-                      <div className="w-full md:w-1/2 flex justify-center">
+                      <div className="w-full md:w-1/2 flex justify-center px-4 md:px-6">
                         <div className="w-full max-w-md bg-white rounded-lg p-6 shadow-xl">
                           <div className="mb-4">
                             <div className="flex items-center justify-between mb-2">
@@ -367,35 +451,48 @@ function AppContent() {
                   {/* Social Proof */}
                   <section 
                     ref={el => sectionRefs.current[2] = el}
-                    className="container mx-auto py-12 bg-emerald-50 px-4 md:px-6 fade-in"
+                    className="container mx-auto py-12 bg-emerald-200 px-4 md:px-6 fade-in"
                   >
-                    <h2 className="text-center text-2xl md:text-3xl font-bold text-emerald-700">
-                      Over 10,000 people are already creating change
-                    </h2>
-                    <div className="flex flex-wrap gap-4 md:gap-6 mt-6 justify-center">
-                      <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
-                        "I went from confused to connected in 30 minutes." — Sam, MI
-                      </blockquote>
-                      <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
-                        "No more guesswork. I'm organizing my first event." — Lex, CA
-                      </blockquote>
+                    <div className="flex flex-col md:flex-row gap-8 items-center">
+                      {/* Left Side - Image */}
+                      <div className="w-full md:w-1/2 flex justify-center">
+                        <img 
+                          src="/assets/sapling.jpg" 
+                          alt="Growing community" 
+                          className="w-full max-w-md rounded-lg shadow-lg object-cover"
+                        />
+                      </div>
+                      {/* Right Side - Text Content */}
+                      <div className="w-full md:w-1/2 flex flex-col justify-center px-4 md:px-6 text-right">
+                        <h2 className="text-2xl md:text-3xl font-bold text-emerald-700 break-words">
+                          Over 10,000 people already creating change
+                        </h2>
+                        <div className="flex flex-wrap gap-4 md:gap-6 mt-6 justify-end">
+                          <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
+                            "I went from confused to connected in 30 minutes." — Sam, MI
+                          </blockquote>
+                          <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
+                            "No more guesswork. I'm organizing my first event." — Lex, CA
+                          </blockquote>
+                        </div>
+                      </div>
                     </div>
                   </section>
 
                   {/* Differentiation */}
                   <section 
                     ref={el => sectionRefs.current[3] = el}
-                    className="container mx-auto py-12 bg-emerald-100 px-4 md:px-6 fade-in"
+                    className="container mx-auto py-12 bg-white px-4 md:px-6 fade-in"
                   >
-                    <h2 className="text-center text-2xl md:text-3xl font-bold text-emerald-800">
+                    <h2 className="text-center text-2xl md:text-3xl font-bold text-emerald-700">
                       Swap memorization for action.
                     </h2>
                     <div className="overflow-x-auto">
                       <table className="w-full mt-8 text-center border-collapse text-gray-700 text-sm md:text-base">
                         <thead>
-                          <tr className="bg-emerald-200">
-                            <th className="py-2 text-brown-700 px-2">Old Civics</th>
-                            <th className="py-2 text-emerald-800 px-2">mygrassroutes</th>
+                          <tr className="bg-emerald-400">
+                            <th className="py-2 text-emerald-900 px-2">Old Civics</th>
+                            <th className="py-2 text-emerald-900 px-2">mygrassroutes</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -419,9 +516,12 @@ function AppContent() {
                   {/* FAQ Section */}
                   <section 
                     ref={el => sectionRefs.current[4] = el}
-                    className="container mx-auto py-12 bg-emerald-50 px-4 md:px-6 fade-in"
+                    className="container mx-auto py-12 bg-emerald-200 px-4 md:px-6 fade-in"
                   >
-                    <h2 className="text-emerald-700 text-2xl md:text-3xl font-bold">Got questions?</h2>
+                    <div className="flex flex-col md:flex-row gap-8 items-start">
+                      {/* Left Side - FAQ Content */}
+                      <div className="w-full md:w-1/2 flex flex-col justify-center px-4 md:px-6">
+                        <h2 className="text-emerald-700 text-2xl md:text-3xl font-bold mb-6">Got questions?</h2>
 
                     <AccordionItem
                       title="What if I don’t know anything about politics?"
@@ -464,6 +564,16 @@ function AppContent() {
                         Yes! Learn to join, grow, and create a movement right from your screen.
                       </p>
                     </AccordionItem>
+                      </div>
+                      {/* Right Side - Image */}
+                      <div className="w-full md:w-1/2 flex justify-center">
+                        <img 
+                          src="/assets/forest.jpg" 
+                          alt="Questions and answers" 
+                          className="w-full max-w-md rounded-lg shadow-lg object-cover"
+                        />
+                      </div>
+                    </div>
                   </section>
 
                   {/* Call to Action */}
@@ -476,7 +586,7 @@ function AppContent() {
                       backgroundPosition: "center",
                     }}
                   >
-                    <div className="absolute inset-0 bg-emerald-700/70"></div>
+                    <div className="absolute inset-0 bg-emerald-600/70"></div>
                     <div className="relative z-10">
                       <h2 className="text-2xl md:text-3xl font-bold">
                         Real change starts right here.
@@ -484,7 +594,7 @@ function AppContent() {
                       <p className="mt-4 max-w-xl mx-auto text-sm md:text-base">
                         Don't wait for someone else to make change. Create it yourself.
                       </p>
-                      <Link to="/pathway" className="mt-6 inline-block bg-white text-emerald-700 px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
+                      <Link to="/pathway" className="mt-6 inline-block bg-white text-emerald-600 px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
                         View The Pathway →
                       </Link>
                     </div>
@@ -510,6 +620,7 @@ function AppContent() {
                 {/* NEW: Login route */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 {/* NEW: Protected Dashboard route */}
                 <Route
                   path="/dashboard"
@@ -519,6 +630,8 @@ function AppContent() {
                     </ProtectedRoute>
                   }
                 />
+                {/* Catch-all route for 404 pages */}
+                <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
         </div>

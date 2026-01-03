@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header/Header';
 import HeaderActions from '../components/HeaderActions';
+import { useAuth } from './AuthProvider';
 import database from '../database/database';
 
 function Sources() {
   const [sources, setSources] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadSources = async () => {
@@ -47,7 +49,7 @@ function Sources() {
     
     return (
       <div key={unitNum} className="mb-12">
-        <h3 className="text-xl md:text-2xl font-bold mb-6 text-emerald-700">
+        <h3 className="text-xl md:text-2xl font-bold mb-6 text-emerald-600">
           Unit {unitNum}: {getUnitTitle(unitNum)}
         </h3>
         <div className="space-y-6">
@@ -114,7 +116,7 @@ function Sources() {
           navLinks={[
             { label: "About", href: "/about" },
             { label: "Sources", href: "/sources" },
-            { label: "Pathway", href: "/pathway" },
+            ...(user ? [] : [{ label: "Pathway", href: "/pathway" }]),
             { label: "Contact", href: "/contact" },
           ]}
           actions={<HeaderActions />}
@@ -134,7 +136,7 @@ function Sources() {
           navLinks={[
             { label: "About", href: "/about" },
             { label: "Sources", href: "/sources" },
-            { label: "Pathway", href: "/pathway" },
+            ...(user ? [] : [{ label: "Pathway", href: "/pathway" }]),
             { label: "Contact", href: "/contact" },
           ]}
           actions={<HeaderActions />}
@@ -159,7 +161,7 @@ function Sources() {
           navLinks={[
             { label: "About", href: "/about" },
             { label: "Sources", href: "/sources" },
-            { label: "Pathway", href: "/pathway" },
+            ...(user ? [] : [{ label: "Pathway", href: "/pathway" }]),
             { label: "Contact", href: "/contact" },
           ]}
           actions={<HeaderActions />}
@@ -175,7 +177,7 @@ function Sources() {
               backgroundPosition: "center",
             }}
           >
-            <div className="absolute inset-0 bg-emerald-700/75"></div>
+            <div className="absolute inset-0 bg-emerald-600/75"></div>
             <div className="relative z-10 max-w-3xl mx-auto text-white px-4 md:px-6">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold mb-4">
                 Sources & References
@@ -203,8 +205,8 @@ function Sources() {
               )}
 
               {/* Additional Resources Section */}
-              <div className="mt-16 pt-12 border-t-2 border-emerald-700">
-                <h2 className="text-2xl md:text-3xl font-bold mb-6 text-emerald-700">
+              <div className="mt-16 pt-12 border-t-2 border-emerald-600">
+                <h2 className="text-2xl md:text-3xl font-bold mb-6 text-emerald-600">
                   Additional Resources
                 </h2>
                 <div className="bg-gray-100 p-6 rounded-lg">
