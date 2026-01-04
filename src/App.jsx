@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Routes, Route, Link, useLocation, useSearchParams } from "react-router-dom";
-import AccordionItem from "./components/AccordionItem.jsx";
+import AccordionItem from "./components/accordionItem.jsx";
 import Header from "./components/Header/Header";
 import HeaderActions from "./components/HeaderActions";
 import About from "./pages/About";
