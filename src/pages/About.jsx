@@ -162,13 +162,13 @@ function About() {
             {/* Introduction Text */}
             <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg shadow-md p-6 md:p-8 border-l-4 border-emerald-600 mb-8">
               <p className="text-base md:text-lg text-gray-800 leading-relaxed mb-4">
-                The Pathway is designed as a progressive learning journey through seven interconnected units. 
-                Each unit builds on the previous one, taking you from understanding grassroots movements to 
-                mastering your role as an active citizen.
+                The Pathway is a progressive learning journey through seven interconnected units. 
+                Each unit builds on the previous one, turning you into a changemaker one step at a time.
               </p>
               <p className="text-base md:text-lg text-gray-800 leading-relaxed">
-                Work through interactive lessons at your own pace, complete activities that connect theory 
-                to practice, and track your progress as you develop the knowledge and skills needed to 
+                Work through interactive lessons, connect theory 
+                to practice and history to current events, and track your progress 
+                as you develop the knowledge and skills needed to 
                 create meaningful change in your community.
               </p>
             </div>
@@ -211,12 +211,12 @@ function About() {
               {/* 2. Lesson Boxes with Z-Pattern */}
               <div className="bg-white rounded-lg shadow-md p-6 border-2 border-emerald-100">
                 <h3 className="text-xl font-bold mb-4 text-emerald-800">Interactive Lesson Path</h3>
-                <p className="text-sm text-gray-700 mb-6">Lessons are arranged in a Z-pattern, alternating left and right. Click any lesson to see details and start learning.</p>
+                <p className="text-sm text-gray-700 mb-6">Lessons are arranged in a Z pattern. Click any lesson to see details and start learning.</p>
                 <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-8 border-2 border-emerald-200 relative">
                   <div className="max-w-2xl mx-auto space-y-6 relative">
-                    {/* Lesson 1 - Left */}
+                    {/* Lesson 1 - Left (completed) */}
                     <div className="flex justify-start">
-                      <div className="bg-white border-2 border-emerald-300 rounded-lg px-4 py-3 max-w-xs shadow-sm">
+                      <div className="bg-emerald-100 border-2 border-emerald-400 rounded-lg px-4 py-3 max-w-xs shadow-sm">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
                             1-A
@@ -238,9 +238,9 @@ function About() {
                       </div>
                     </div>
 
-                    {/* Lesson 2 - Right */}
+                    {/* Lesson 2 - Right (completed) */}
                     <div className="flex justify-end">
-                      <div className="bg-white border-2 border-emerald-300 rounded-lg px-4 py-3 max-w-xs shadow-sm">
+                      <div className="bg-emerald-100 border-2 border-emerald-400 rounded-lg px-4 py-3 max-w-xs shadow-sm">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
                             1-B
@@ -262,26 +262,50 @@ function About() {
                       </div>
                     </div>
 
-                    {/* Lesson 3 - Left (completed) */}
+                    {/* Lesson 3 - Left (available, not completed) */}
                     <div className="flex justify-start">
-                      <div className="bg-gray-100 border-2 border-gray-300 rounded-lg px-4 py-3 max-w-xs shadow-sm">
+                      <div className="bg-white border-2 border-emerald-300 rounded-lg px-4 py-3 max-w-xs shadow-sm">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded bg-gray-400 flex items-center justify-center text-white font-bold text-xs">
+                          <div className="w-10 h-10 rounded bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">
                             1-C
                           </div>
                           <h4 className="font-bold text-sm text-gray-800">Organizing Strategies</h4>
                         </div>
                       </div>
                     </div>
+
+                    {/* Arrow down then right */}
+                    <div className="flex items-center justify-center">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Lesson 4 - Right (locked) */}
+                    <div className="flex justify-end">
+                      <div className="bg-gray-100 border-2 border-gray-300 rounded-lg px-4 py-3 max-w-xs shadow-sm opacity-60">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded bg-gray-400 flex items-center justify-center text-white font-bold text-xs">
+                            1-D
+                          </div>
+                          <h4 className="font-bold text-sm text-gray-500">Building Coalitions</h4>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-4 text-center italic">Lessons alternate in a Z-pattern, with completed lessons shown in gray</p>
+                <p className="text-xs text-gray-500 mt-4 text-center italic">Lessons alternate in a Z pattern. Completed lessons are shown in green, available lessons in white, and locked lessons in gray.</p>
               </div>
 
               {/* 3. Question Examples */}
               <div className="bg-white rounded-lg shadow-md p-6 border-2 border-emerald-100">
                 <h3 className="text-xl font-bold mb-4 text-emerald-800">Interactive Questions</h3>
-                <p className="text-sm text-gray-700 mb-6">Each lesson includes interactive questions to help you apply what you've learned. Questions include multiple choice, true/false, select all, and fill-in-the-blank formats.</p>
+                <p className="text-sm text-gray-700 mb-6">Each lesson includes interactive questions to help you apply what you've learned. Questions include multiple choice, true/false, select all, and fill-in-the-blank types.</p>
                 <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-6 border-2 border-emerald-200">
                   <div className="max-w-lg mx-auto">
                     {/* Example Multiple Choice Question */}
@@ -352,7 +376,7 @@ function About() {
               >
                 <h3 className="font-semibold text-lg md:text-xl mb-1 text-emerald-800">Unit 1 – Grassroots Movements</h3>
                 <p className="text-sm md:text-base text-gray-700">
-                  Understanding how to grow change from the ground up. Learn about change in the past and present.
+                  Understand how to grow change from the ground up. Learn about change in the past and present.
                 </p>
               </div>
               <div 
@@ -362,7 +386,7 @@ function About() {
               >
                 <h3 className="font-semibold text-lg md:text-xl mb-1 text-amber-800">Unit 2 – The Media <span className="text-amber-600 font-normal text-base">(Coming Soon)</span></h3>
                 <p className="text-sm md:text-base text-gray-700">
-                  See how news shapes narratives — and shape your own.
+                  See how news shapes narratives, and learn to shape your own.
                 </p>
               </div>
               <div 
@@ -402,7 +426,7 @@ function About() {
               >
                 <h3 className="font-semibold text-lg md:text-xl mb-1 text-purple-800">Unit 6 – Political Science <span className="text-purple-600 font-normal text-base">(Coming Soon)</span></h3>
                 <p className="text-sm md:text-base text-gray-700">
-                  Understand the systems that define our political beliefs and decisions,
+                  Understand the systems that define our political beliefs and decisions.
                 </p>
               </div>
               <div 
@@ -431,7 +455,7 @@ function About() {
             <div className="relative z-10 max-w-3xl mx-auto text-white px-4 md:px-6">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">You're more powerful than you think.</h2>
               <p className="mb-8 text-sm md:text-base">
-                Take control of your power as a citizen, and bring your friends with you.
+                Take control of your power as a changemaker, and bring your friends with you.
               </p>
               <Link to="/pathway">
                 <button className="bg-white text-emerald-500 font-medium px-4 md:px-6 py-3 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
@@ -443,7 +467,19 @@ function About() {
 
           {/* Footer */}
           <footer className="bg-gray-100 py-6 text-center text-sm px-4 md:px-6">
-            <p className="font-semibold">mygrassroutes – Politics for all.</p>
+            <p className="font-semibold">mygrassroutes – Politics, step by step.</p>
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <a href="https://www.instagram.com/mygrassroutes?igsh=cW9tOHdhbmRyOXk4&utm_source=qr" className="text-gray-600 hover:text-emerald-600 transition-colors" aria-label="Instagram">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a>
+              <a href="https://bsky.app/profile/mygrassroutes.bsky.social" className="text-gray-600 hover:text-emerald-600 transition-colors" aria-label="Bluesky">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M19.36 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.64-4.96z"/>
+                </svg>
+              </a>
+            </div>
             <p className="mt-2 text-xs text-gray-600">
               Copyright © 2025 mygrassroutes
             </p>

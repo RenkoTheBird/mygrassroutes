@@ -208,7 +208,7 @@ function AppContent() {
                             {/* Left Side - Text Content */}
                             <div className="relative z-10 w-full md:w-1/2 flex flex-col items-start justify-center p-4 md:p-8">
                               <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold leading-tight mb-4 text-white text-left">
-                                You've always been told to "get involved." So forge your path to change.
+                                Get involved, step by step.
                               </h1>
                               <p className="text-sm md:text-base mb-6 text-white text-left max-w-md">
                                 Create change right from your screen.
@@ -371,9 +371,9 @@ function AppContent() {
                           Everyone tells you to "get involved." But how?
                         </h2>
                         <p className="mt-4 text-gray-700 leading-relaxed text-sm md:text-base">
-                          Politics feels distant, confusing, corrupt, and rigged for insiders. 
-                          The system is hard to navigate. And most sites just explain, 
-                          without telling you how to create the change you want.
+                          Politics feels distant, confusing, and rigged for insiders. 
+                          It's impossible to know where to start. And most sites just regurgitate 
+                          civics classes, without telling you how to create the change you want.
                         </p>
                       </div>
                     </div>
@@ -388,13 +388,13 @@ function AppContent() {
                       {/* Left Side - Text Content */}
                       <div className="w-full md:w-1/2 flex flex-col justify-center px-4 md:px-6">
                         <h2 className="text-2xl md:text-3xl font-bold text-emerald-700 mb-6">
-                          mygrassroutes turns learning into action.
+                          mygrassroutes turns learning into actionable change.
                         </h2>
                         <ul className="space-y-3 text-gray-800 text-sm md:text-base mb-6">
-                          <li>✅ Learn by doing, not memorizing</li>
-                          <li>✅ Discover exactly where you can make change</li>
-                          <li>✅ Unlock actions that matter now</li>
-                          <li>✅ Designed for first-timers, built for changemakers</li>
+                          <li> - Learn by doing, not memorizing </li>
+                          <li> - Discover exactly where you can make change </li>
+                          <li> - Unveil strategies that work right now </li>
+                          <li> - Accessible for all, detailed for leaders </li>
                         </ul>
                         <div>
                           <Link to="/pathway" className="inline-block bg-emerald-600 text-white px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-500 transition text-sm md:text-base">
@@ -465,14 +465,14 @@ function AppContent() {
                       {/* Right Side - Text Content */}
                       <div className="w-full md:w-1/2 flex flex-col justify-center px-4 md:px-6 text-right">
                         <h2 className="text-2xl md:text-3xl font-bold text-emerald-700 break-words">
-                          Over 10,000 people already creating change
+                          Thousands are already creating change.
                         </h2>
                         <div className="flex flex-wrap gap-4 md:gap-6 mt-6 justify-end">
                           <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
-                            "I went from confused to connected in 30 minutes." — Sam, MI
+                            "I went from confused to connected in 30 minutes."
                           </blockquote>
                           <blockquote className="bg-white shadow-md p-4 md:p-6 rounded-lg max-w-sm text-gray-700 italic text-sm md:text-base">
-                            "No more guesswork. I'm organizing my first event." — Lex, CA
+                            "With no more guesswork, I'm organizing my first event."
                           </blockquote>
                         </div>
                       </div>
@@ -502,11 +502,11 @@ function AppContent() {
                           </tr>
                           <tr className="border-b">
                             <td className="py-2 px-2">Read a boring textbook</td>
-                            <td className="py-2 px-2">Get live civic action prompts</td>
+                            <td className="py-2 px-2">Get up-to-date, actionable info</td>
                           </tr>
                           <tr>
                             <td className="py-2 px-2">Watch from the sidelines</td>
-                            <td className="py-2 px-2">Lead from where you are</td>
+                            <td className="py-2 px-2">Lead from anywhere</td>
                           </tr>
                         </tbody>
                       </table>
@@ -529,8 +529,7 @@ function AppContent() {
                       onClick={() => toggleAccordion(0)}
                     >
                       <p>
-                        No problem. The Pathway starts at zero and guides you one click at a
-                        time.
+                        Not a problem. The Pathway is designed to connect with beginners searching for their first steps, just like you.
                       </p>
                     </AccordionItem>
 
@@ -540,8 +539,7 @@ function AppContent() {
                       onClick={() => toggleAccordion(1)}
                     >
                       <p>
-                        Nope. Anyone can use mygrassroutes, from young students to seasoned
-                        activists.
+                        Nope. Students will benefit from the knowledge, but mygrassroutes is built for the real world.
                       </p>
                     </AccordionItem>
 
@@ -592,7 +590,7 @@ function AppContent() {
                         Real change starts right here.
                       </h2>
                       <p className="mt-4 max-w-xl mx-auto text-sm md:text-base">
-                        Don't wait for someone else to make change. Create it yourself.
+                        Don't wait for someone else. Create it yourself.
                       </p>
                       <Link to="/pathway" className="mt-6 inline-block bg-white text-emerald-600 px-4 md:px-6 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
                         View The Pathway →
@@ -603,8 +601,20 @@ function AppContent() {
                   {/* Footer */}
                   <footer className="bg-gray-900 text-white py-6 text-center mt-8 px-4 md:px-6">
                     <p className="text-sm md:text-base">
-                      <strong>mygrassroutes</strong> – Politics for all.
+                      <strong>mygrassroutes</strong> – Politics, step by step.
                     </p>
+                    <div className="flex items-center justify-center gap-4 mt-3">
+                      <a href="https://www.instagram.com/mygrassroutes?igsh=cW9tOHdhbmRyOXk4&utm_source=qr" className="text-white opacity-75 hover:text-emerald-400 hover:opacity-100 transition-colors" aria-label="Instagram">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                        </svg>
+                      </a>
+                      <a href="https://bsky.app/profile/mygrassroutes.bsky.social" className="text-white opacity-75 hover:text-emerald-400 hover:opacity-100 transition-colors" aria-label="Bluesky">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M19.36 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.64-4.96z"/>
+                        </svg>
+                      </a>
+                    </div>
                     <p className="mt-2 text-xs opacity-75">
                       Copyright © 2025 mygrassroutes
                     </p>

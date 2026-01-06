@@ -285,7 +285,7 @@ export default function Dashboard() {
                     to="/pathway"
                     className="inline-block px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition cursor-pointer"
                   >
-                    View The Tree
+                    View The Pathway
                   </Link>
                   <Link
                     to="/about"
