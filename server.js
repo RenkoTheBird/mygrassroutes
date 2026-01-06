@@ -13,6 +13,12 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Create Express app
+const app = express();
+
+// Define PORT
+const PORT = process.env.PORT || 3001;
+
 // Initialize Stripe only if secret key is provided
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
@@ -20,7 +26,6 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 // Initialize database (PostgreSQL)
 let dbInitialized = false;
-
 
 // Start server function
 function startServer() {
@@ -59,7 +64,6 @@ function startServer() {
     process.exit(1);
   }
 })();
-const PORT = process.env.PORT || 3001;
 
 // Middleware
 // Configure CORS for production
