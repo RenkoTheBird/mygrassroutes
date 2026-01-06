@@ -9,9 +9,6 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
     allowedHosts: [
-      '.ngrok-free.app',
-      '.ngrok-free.dev',
-      '.ngrok.io',
       'localhost',
     ],
     cors: true,

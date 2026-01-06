@@ -1,5 +1,5 @@
 // Database utility for API operations
-// This connects to the Express server which handles SQLite operations
+// This connects to the Express server which handles database operations
 
 // Determine API base URL:
 // - In development (localhost), always use proxy for better performance
@@ -10,11 +10,9 @@ const isLocalhost = typeof window !== 'undefined' &&
    window.location.hostname === '127.0.0.1' || 
    window.location.hostname === '');
 
-const hasNgrokUrl = import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.includes('ngrok');
-
-// In development on localhost, always use the proxy (ignore VITE_API_URL if it's ngrok)
-const API_BASE_URL = (isLocalhost && hasNgrokUrl)
-  ? '/api'  // Prefer proxy in development, even if ngrok URL is set
+// In development on localhost, always use the proxy
+const API_BASE_URL = isLocalhost
+  ? '/api'  // Use proxy in development
   : (import.meta.env.VITE_API_URL 
       ? `${import.meta.env.VITE_API_URL}/api` 
       : '/api');
@@ -23,7 +21,6 @@ const API_BASE_URL = (isLocalhost && hasNgrokUrl)
 if (typeof window !== 'undefined') {
   console.log('[Database] API configuration:', {
     isLocalhost,
-    hasNgrokUrl,
     VITE_API_URL: import.meta.env.VITE_API_URL,
     API_BASE_URL,
     hostname: window.location.hostname

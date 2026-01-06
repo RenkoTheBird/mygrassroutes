@@ -35,9 +35,13 @@ const DonationForm = () => {
       // Convert to cents for Stripe
       const amountInCents = Math.round(parseFloat(amount) * 100);
 
-      // Determine API URL - use relative path if on localhost (to use Vite proxy), otherwise use full URL
+      // Determine API URL - use relative path in production (same domain), or use Vite proxy in development
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const apiUrl = isLocalhost ? '/create-checkout-session' : `${STRIPE_CONFIG.apiUrl}/create-checkout-session`;
+      const apiUrl = isLocalhost 
+        ? '/create-checkout-session' 
+        : (STRIPE_CONFIG.apiUrl && STRIPE_CONFIG.apiUrl !== 'http://localhost:3001'
+          ? `${STRIPE_CONFIG.apiUrl}/create-checkout-session`
+          : '/create-checkout-session'); // Use relative path if no API URL is configured (production on same domain)
 
       const response = await fetch(apiUrl, {
         method: 'POST',

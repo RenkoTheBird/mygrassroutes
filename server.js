@@ -1,11 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import Stripe from 'stripe';
-import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 import dotenv from 'dotenv';
+import { initDatabase, dbQuery, convertQuery } from './src/database/db.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -18,39 +18,83 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 
-// Initialize SQLite database
-let db;
-try {
-  db = new Database(path.join(__dirname, 'src', 'database', 'questions.db'));
-  console.log('[SERVER] Database initialized successfully');
+// Initialize database (PostgreSQL)
+let dbInitialized = false;
 
-  // Create lesson_content table if it doesn't exist
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS lesson_content (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      lesson_id INTEGER NOT NULL,
-      content_type TEXT NOT NULL DEFAULT 'paragraph',
-      content_order INTEGER NOT NULL DEFAULT 1,
-      title TEXT,
-      content TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  console.log('[SERVER] Database tables ready');
 
-  // Populate with sample lesson content for the first few lessons
-  populateSampleLessonContent();
-} catch (error) {
-  console.error('[SERVER] ERROR: Failed to initialize database:', error);
-  process.exit(1);
+// Start server function
+function startServer() {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[SERVER] Server running on http://localhost:${PORT}`);
+    console.log(`[SERVER] Network access: http://${getLocalIP()}:${PORT}`);
+    console.log(`[SERVER] API endpoints available at http://localhost:${PORT}/api`);
+    if (!stripe) {
+      console.warn(`[SERVER] WARNING: Stripe is not configured. Payment features will not work.`);
+    }
+  }).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[SERVER] ERROR: Port ${PORT} is already in use. Please stop the other process or change the PORT environment variable.`);
+    } else {
+      console.error(`[SERVER] ERROR: Failed to start server:`, err);
+    }
+    process.exit(1);
+  });
 }
 
-const app = express();
+// Async initialization function
+(async function initializeServer() {
+  try {
+    await initDatabase();
+    dbInitialized = true;
+    console.log('[SERVER] Database initialized successfully');
+    
+    
+    // Start the server
+    startServer();
+  } catch (error) {
+    console.error('[SERVER] ERROR: Failed to initialize database:', error);
+    process.exit(1);
+  }
+})();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+// Configure CORS for production
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests, or same-origin requests)
+    if (!origin) return callback(null, true);
+    
+    // In production, allow requests from the production domain
+    const allowedOrigins = [
+      'https://www.mygrassroutes.com',
+      'https://mygrassroutes.com',
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ];
+    
+    // Also allow any Railway preview domains (for testing)
+    if (origin.includes('.railway.app') || origin.includes('.up.railway.app')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In development, allow all origins
+      if (process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+      } else {
+        // In production, be more permissive for same-domain requests
+        // Since frontend and backend are on the same domain, this should rarely be an issue
+        callback(null, true);
+      }
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Request logging middleware
@@ -107,7 +151,7 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // Database API endpoints
-// Since the questions.db only has a questions table, we'll create mock data for units/sections/lessons
+// Create mock data for units/sections/lessons
 // and use the actual questions table for questions
 
 // Mock data for units (since they don't exist in the database)
@@ -759,7 +803,7 @@ app.get('/api/lesson/:lessonId', (req, res) => {
   }
 });
 
-app.get('/api/questions/:lessonId', (req, res) => {
+app.get('/api/questions/:lessonId', async (req, res) => {
   try {
     const { lessonId } = req.params;
     // Map lessonId to module pattern
@@ -781,7 +825,8 @@ app.get('/api/questions/:lessonId', (req, res) => {
     
     const modulePattern = `1-${sectionLetter}-${lessonIndex}`;
     
-    const questions = db.prepare('SELECT * FROM questions WHERE module = ?').all(modulePattern);
+    const { query: querySql, params } = convertQuery('SELECT * FROM questions WHERE module = ?', [modulePattern]);
+    const questions = await dbQuery.all(querySql, params);
     
     // Transform questions to match expected format
     const transformedQuestions = questions.map((question, index) => {
@@ -789,9 +834,10 @@ app.get('/api/questions/:lessonId', (req, res) => {
       let options = null;
       
       // Parse options with error handling
+      // PostgreSQL returns JSONB as objects
       if (question.answers) {
         try {
-          options = JSON.parse(question.answers);
+          options = typeof question.answers === 'string' ? JSON.parse(question.answers) : question.answers;
         } catch (e) {
           console.error(`Error parsing options for question ${index + 1}:`, e.message);
           // Try to fix common JSON issues
@@ -842,12 +888,13 @@ app.get('/api/questions/:lessonId', (req, res) => {
   }
 });
 
-app.get('/api/question/:questionId', (req, res) => {
+app.get('/api/question/:questionId', async (req, res) => {
   try {
     const { questionId } = req.params;
     // This endpoint is not currently used, but if needed, it would need to be updated
     // to map questionId to the appropriate module and question index
-    const question = db.prepare('SELECT * FROM questions WHERE module = "1-a-1" LIMIT 1 OFFSET ?').get(parseInt(questionId) - 1);
+    const { query: querySql, params } = convertQuery('SELECT * FROM questions WHERE module = ? LIMIT 1 OFFSET ?', ['1-a-1', parseInt(questionId) - 1]);
+    const question = await dbQuery.get(querySql, params);
     if (!question) {
       return res.status(404).json({ error: 'Question not found' });
     }
@@ -877,25 +924,20 @@ app.get('/api/question/:questionId', (req, res) => {
 });
 
 // New endpoint for lesson content
-app.get('/api/lesson-content/:lessonId', (req, res) => {
+app.get('/api/lesson-content/:lessonId', async (req, res) => {
   try {
     const { lessonId } = req.params;
     const lessonNum = parseInt(lessonId);
     
     // Get lesson content from database
-    const content = db.prepare(`
+    const { query: querySql, params } = convertQuery(`
       SELECT * FROM lesson_content 
       WHERE lesson_id = ? 
       ORDER BY content_order ASC
-    `).all(lessonNum);
+    `, [lessonNum]);
+    const content = await dbQuery.all(querySql, params);
     
-    if (content.length === 0) {
-      // If no content exists, return default content based on lesson ID
-      const defaultContent = generateDefaultLessonContent(lessonNum);
-      res.json(defaultContent);
-    } else {
-      res.json(content);
-    }
+    res.json(content);
   } catch (error) {
     console.error('Error fetching lesson content:', error);
     res.status(500).json({ error: 'Failed to fetch lesson content' });
@@ -953,135 +995,25 @@ function convertCorrectAnswerToOptionKey(correctAnswer, options, questionType) {
   return correctAnswer; // Return as-is for other question types
 }
 
-// Helper function to generate default lesson content
-function generateDefaultLessonContent(lessonId) {
-  const sectionIndex = Math.floor((lessonId - 1) / 6);
-  const lessonIndex = ((lessonId - 1) % 6) + 1;
-  const sectionLetters = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
-  const sectionNames = [
-    'Foundations', 'Building Coalitions', 'Strategy & Tactics', 
-    'Communication', 'Resource Mobilization', 'Sustaining Movements', 'Measuring Impact'
-  ];
-  const sectionLetter = sectionLetters[sectionIndex];
-  const sectionName = sectionNames[sectionIndex];
-  
-  return [
-    {
-      id: 1,
-      lesson_id: lessonId,
-      content_type: 'header',
-      content_order: 1,
-      title: `Unit 1, Section ${sectionLetter.toUpperCase()}: ${sectionName}`,
-      content: `This lesson covers important concepts in ${sectionName.toLowerCase()}. Answer the questions below to test your understanding and learn more about how change happens from the ground up.`
-    },
-    {
-      id: 2,
-      lesson_id: lessonId,
-      content_type: 'paragraph',
-      content_order: 2,
-      title: 'Learning Objectives',
-      content: `In this lesson, you will learn about key principles of ${sectionName.toLowerCase()}, effective strategies for social change, the role of community in political movements, and how to develop critical thinking about civic engagement.`
-    },
-    {
-      id: 3,
-      lesson_id: lessonId,
-      content_type: 'paragraph',
-      content_order: 3,
-      title: 'Key Concepts',
-      content: `Understanding ${sectionName.toLowerCase()} is crucial for anyone looking to make a difference in their community. This lesson will help you understand the fundamental principles that drive successful social movements and civic engagement.`
-    },
-    {
-      id: 4,
-      lesson_id: lessonId,
-      content_type: 'tip',
-      content_order: 4,
-      title: 'Study Tip',
-      content: 'Take your time with each question and think about how the concepts apply to real-world situations. Consider how you might apply these ideas in your own community.'
-    }
-  ];
-}
-
-// Function to populate sample lesson content
-function populateSampleLessonContent() {
-  try {
-    // Check if content already exists
-    const existingContent = db.prepare('SELECT COUNT(*) as count FROM lesson_content').get();
-    if (existingContent.count > 0) {
-      console.log('Lesson content already exists, skipping population');
-      return;
-    }
-
-    // Sample content for lesson 1 (Unit 1, Section A, Lesson A)
-    const sampleContent = [
-      {
-        lesson_id: 1,
-        content_type: 'header',
-        content_order: 1,
-        title: 'Unit 1, Section A: Foundations',
-        content: 'This lesson covers the fundamental principles of grassroots organizing and civic engagement. Answer the questions below to test your understanding and learn more about how change happens from the ground up.'
-      },
-      {
-        lesson_id: 1,
-        content_type: 'paragraph',
-        content_order: 2,
-        title: 'The Power of the Desk',
-        content: 'Change doesn\'t always require grand gestures or massive demonstrations. Sometimes, the most powerful change begins right where you are - at your desk, in your home, in your community. This lesson explores how individual actions can create ripple effects that lead to meaningful social change.'
-      },
-      {
-        lesson_id: 1,
-        content_type: 'paragraph',
-        content_order: 3,
-        title: 'Learning Objectives',
-        content: 'By the end of this lesson, you will understand the fundamental principles of grassroots organizing, learn about effective strategies for social change, explore the role of community in political movements, and develop critical thinking skills about civic engagement.'
-      },
-      {
-        lesson_id: 1,
-        content_type: 'paragraph',
-        content_order: 4,
-        title: 'Key Concepts',
-        content: 'Understanding grassroots organizing is crucial for anyone looking to make a difference in their community. This lesson will help you understand the fundamental principles that drive successful social movements and civic engagement, from individual action to collective impact.'
-      },
-      {
-        lesson_id: 1,
-        content_type: 'tip',
-        content_order: 5,
-        title: 'Study Tip',
-        content: 'Take your time with each question and think about how the concepts apply to real-world situations. Consider how you might apply these ideas in your own community and what actions you could take to create positive change.'
-      }
-    ];
-
-    // Insert sample content
-    const insertStmt = db.prepare(`
-      INSERT INTO lesson_content (lesson_id, content_type, content_order, title, content)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-
-    sampleContent.forEach(item => {
-      insertStmt.run(item.lesson_id, item.content_type, item.content_order, item.title, item.content);
-    });
-
-    console.log('Sample lesson content populated successfully');
-  } catch (error) {
-    console.error('Error populating sample lesson content:', error);
-  }
-}
 
 // Get all sources grouped by unit, section, and lesson
-app.get('/api/sources', (req, res) => {
+app.get('/api/sources', async (req, res) => {
   try {
-    // First, let's check what columns exist in the questions table
-    const tableInfo = db.prepare("PRAGMA table_info(questions)").all();
-    console.log('[API] Questions table columns:', tableInfo);
-    
     // Get all questions with their sources
     let allQuestions = [];
     try {
       // Fix: Use single quotes for string literals and properly check for NULL/empty values
-      allQuestions = db.prepare('SELECT DISTINCT module, source FROM questions WHERE source IS NOT NULL AND source != ? AND source != ? AND LENGTH(TRIM(source)) > 0').all('', 'No source available.');
+      // PostgreSQL uses LENGTH() function, but for compatibility we'll use TRIM() and check length
+      const { query: querySql, params } = convertQuery(
+        'SELECT DISTINCT module, source FROM questions WHERE source IS NOT NULL AND source != ? AND source != ? AND LENGTH(TRIM(source)) > 0',
+        ['', 'No source available.']
+      );
+      allQuestions = await dbQuery.all(querySql, params);
     } catch (sqlError) {
       console.error('[API] SQL Error:', sqlError);
       // Try without WHERE clause to see what data exists
-      allQuestions = db.prepare('SELECT module, source FROM questions').all();
+      const { query: querySql, params } = convertQuery('SELECT module, source FROM questions', []);
+      allQuestions = await dbQuery.all(querySql, params);
       console.log('[API] Unfiltered query returned:', allQuestions.length, 'rows');
     }
     
@@ -1161,7 +1093,7 @@ if (isProduction) {
   app.get('/', (req, res) => {
     res.status(404).json({ 
       error: 'This is the backend API server. Please use the frontend URL instead.',
-      message: 'The frontend should be accessed through the ngrok frontend tunnel URL.',
+      message: 'The frontend should be accessed through the Vite development server.',
       endpoints: [
         '/health - Health check',
         '/api/sources - Get sources',
@@ -1173,21 +1105,6 @@ if (isProduction) {
   });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SERVER] Server running on http://localhost:${PORT}`);
-  console.log(`[SERVER] Network access: http://${getLocalIP()}:${PORT}`);
-  console.log(`[SERVER] API endpoints available at http://localhost:${PORT}/api`);
-  if (!stripe) {
-    console.warn(`[SERVER] WARNING: Stripe is not configured. Payment features will not work.`);
-  }
-}).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`[SERVER] ERROR: Port ${PORT} is already in use. Please stop the other process or change the PORT environment variable.`);
-  } else {
-    console.error(`[SERVER] ERROR: Failed to start server:`, err);
-  }
-  process.exit(1);
-});
 
 function getLocalIP() {
   for (const name of Object.keys(networkInterfaces())) {
