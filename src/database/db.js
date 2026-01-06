@@ -12,27 +12,33 @@ let pgPool = null;
 // Initialize database connection
 export async function initDatabase() {
   if (!process.env.DATABASE_URL) {
-    console.error('[DATABASE] ERROR: DATABASE_URL environment variable is required');
-    throw new Error('DATABASE_URL environment variable is required');
+    console.warn('[DATABASE] WARNING: DATABASE_URL environment variable is not set');
+    console.warn('[DATABASE] Database-dependent endpoints will not work until DATABASE_URL is configured');
+    console.warn('[DATABASE] To fix: Add a PostgreSQL service in Railway and link it to your web service');
+    pgPool = null;
+    return false;
   }
 
   // Use PostgreSQL
-  pgPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false,
-  });
-  
-  // Test connection
   try {
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false,
+    });
+    
+    // Test connection
     const client = await pgPool.connect();
     console.log('[DATABASE] PostgreSQL connection established');
     client.release();
     
     // Initialize tables
     await initPostgreSQLTables();
+    return true;
   } catch (error) {
     console.error('[DATABASE] Failed to connect to PostgreSQL:', error);
-    throw error;
+    console.error('[DATABASE] Database-dependent endpoints will not work');
+    pgPool = null;
+    return false;
   }
 }
 
@@ -76,10 +82,18 @@ async function initPostgreSQLTables() {
   }
 }
 
+// Check if database is available
+export function isDatabaseAvailable() {
+  return pgPool !== null;
+}
+
 // Database query methods
 export const dbQuery = {
   // Execute a SELECT query and return all results
   async all(query, params = []) {
+    if (!pgPool) {
+      throw new Error('Database is not available. Please configure DATABASE_URL environment variable.');
+    }
     const client = await pgPool.connect();
     try {
       const result = await client.query(query, params);
@@ -91,6 +105,9 @@ export const dbQuery = {
   
   // Execute a SELECT query and return first result
   async get(query, params = []) {
+    if (!pgPool) {
+      throw new Error('Database is not available. Please configure DATABASE_URL environment variable.');
+    }
     const client = await pgPool.connect();
     try {
       const result = await client.query(query, params);
@@ -102,6 +119,9 @@ export const dbQuery = {
   
   // Execute an INSERT/UPDATE/DELETE query
   async run(query, params = []) {
+    if (!pgPool) {
+      throw new Error('Database is not available. Please configure DATABASE_URL environment variable.');
+    }
     const client = await pgPool.connect();
     try {
       const result = await client.query(query, params);
@@ -116,6 +136,9 @@ export const dbQuery = {
   
   // Execute multiple queries in a transaction
   async exec(queries) {
+    if (!pgPool) {
+      throw new Error('Database is not available. Please configure DATABASE_URL environment variable.');
+    }
     const client = await pgPool.connect();
     try {
       await client.query('BEGIN');

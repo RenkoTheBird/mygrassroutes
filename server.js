@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 import dotenv from 'dotenv';
-import { initDatabase, dbQuery, convertQuery } from './src/database/db.js';
+import { initDatabase, dbQuery, convertQuery, isDatabaseAvailable } from './src/database/db.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -44,15 +44,18 @@ function startServer() {
 // Async initialization function
 (async function initializeServer() {
   try {
-    await initDatabase();
-    dbInitialized = true;
-    console.log('[SERVER] Database initialized successfully');
+    dbInitialized = await initDatabase();
+    if (dbInitialized) {
+      console.log('[SERVER] Database initialized successfully');
+    } else {
+      console.warn('[SERVER] WARNING: Database not initialized. Some endpoints may not work.');
+      console.warn('[SERVER] To fix: Add a PostgreSQL service in Railway and link it to your web service');
+    }
     
-    
-    // Start the server
+    // Start the server even if database initialization failed
     startServer();
   } catch (error) {
-    console.error('[SERVER] ERROR: Failed to initialize database:', error);
+    console.error('[SERVER] ERROR: Failed to initialize server:', error);
     process.exit(1);
   }
 })();
@@ -804,6 +807,12 @@ app.get('/api/lesson/:lessonId', (req, res) => {
 });
 
 app.get('/api/questions/:lessonId', async (req, res) => {
+  if (!isDatabaseAvailable()) {
+    return res.status(503).json({ 
+      error: 'Database is not available',
+      message: 'Please configure DATABASE_URL environment variable. Add a PostgreSQL service in Railway and link it to your web service.'
+    });
+  }
   try {
     const { lessonId } = req.params;
     // Map lessonId to module pattern
@@ -889,6 +898,12 @@ app.get('/api/questions/:lessonId', async (req, res) => {
 });
 
 app.get('/api/question/:questionId', async (req, res) => {
+  if (!isDatabaseAvailable()) {
+    return res.status(503).json({ 
+      error: 'Database is not available',
+      message: 'Please configure DATABASE_URL environment variable. Add a PostgreSQL service in Railway and link it to your web service.'
+    });
+  }
   try {
     const { questionId } = req.params;
     // This endpoint is not currently used, but if needed, it would need to be updated
@@ -925,6 +940,12 @@ app.get('/api/question/:questionId', async (req, res) => {
 
 // New endpoint for lesson content
 app.get('/api/lesson-content/:lessonId', async (req, res) => {
+  if (!isDatabaseAvailable()) {
+    return res.status(503).json({ 
+      error: 'Database is not available',
+      message: 'Please configure DATABASE_URL environment variable. Add a PostgreSQL service in Railway and link it to your web service.'
+    });
+  }
   try {
     const { lessonId } = req.params;
     const lessonNum = parseInt(lessonId);
@@ -998,6 +1019,12 @@ function convertCorrectAnswerToOptionKey(correctAnswer, options, questionType) {
 
 // Get all sources grouped by unit, section, and lesson
 app.get('/api/sources', async (req, res) => {
+  if (!isDatabaseAvailable()) {
+    return res.status(503).json({ 
+      error: 'Database is not available',
+      message: 'Please configure DATABASE_URL environment variable. Add a PostgreSQL service in Railway and link it to your web service.'
+    });
+  }
   try {
     // Get all questions with their sources
     let allQuestions = [];
