@@ -308,61 +308,109 @@ function AppContent() {
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[10%] left-[20%]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[30%] left-[10%] [animation-delay:1.5s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 [animation-delay:3s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[45%] left-[45%] -translate-x-1/2 -translate-y-1/2 [animation-delay:4.5s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[20%] right-[25%] [animation-delay:2s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] bottom-[15%] right-[20%] [animation-delay:5s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[5%] left-[40%] [animation-delay:0.8s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[40%] left-[5%] [animation-delay:2.5s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[60%] left-[25%] [animation-delay:3.8s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] bottom-[10%] left-[35%] [animation-delay:5.5s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] top-[15%] right-[10%] [animation-delay:1.2s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                         <img 
                           src="/assets/leaf.svg" 
                           alt="Falling leaf" 
                           className="absolute w-8 h-8 opacity-60 animate-[float_6s_ease-in-out_infinite] bottom-[5%] right-[35%] [animation-delay:4.2s]"
+                          onError={(e) => {
+                            console.error('Failed to load leaf image:', '/assets/leaf.svg');
+                            e.target.style.display = 'none';
+                          }}
                         />
                       </div>
                       {/* Right Side - Text Content */}

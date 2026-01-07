@@ -25,7 +25,15 @@ export default function Header({ logo, navLinks = [], actions }) {
         <div className="flex items-center gap-3">
           {logo && (
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <img src={logo} alt="Logo" className="h-10" />
+              <img 
+                src={logo} 
+                alt="Logo" 
+                className="h-10" 
+                onError={(e) => {
+                  console.error('Failed to load logo:', logo);
+                  e.target.style.display = 'none';
+                }}
+              />
             </Link>
           )}
         </div>

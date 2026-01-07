@@ -1108,7 +1108,14 @@ app.get('/health', (req, res) => {
 // Serve static files from the dist directory in production (after API routes)
 if (isProduction) {
   const distPath = path.join(__dirname, 'dist');
-  app.use(express.static(distPath));
+  // Configure express.static with proper MIME types for SVG files
+  app.use(express.static(distPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.svg')) {
+        res.setHeader('Content-Type', 'image/svg+xml');
+      }
+    }
+  }));
   console.log(`[SERVER] Serving static files from: ${distPath}`);
   
   // Serve React app for all non-API routes (catch-all for client-side routing)

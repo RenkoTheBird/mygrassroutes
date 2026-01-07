@@ -219,7 +219,15 @@ function Pathway() {
               <div className="max-w-7xl mx-auto flex items-center justify-between h-full">
                 <div className="flex items-center gap-3">
                   <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                    <img src="/assets/Tree.svg" alt="Home" className="h-8 w-8" />
+                    <img 
+                      src="/assets/Tree.svg" 
+                      alt="Home" 
+                      className="h-8 w-8" 
+                      onError={(e) => {
+                        console.error('Failed to load Tree logo:', '/assets/Tree.svg');
+                        e.target.style.display = 'none';
+                      }}
+                    />
                   </Link>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-emerald-600" />
