@@ -7,7 +7,7 @@ import { useUserProgress } from "../hooks/useUserProgress";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { completedLessons, getProgressStats } = useUserProgress();
+  const { completedLessons, getProgressStats, loading: userProgressLoading } = useUserProgress();
   const [message, setMessage] = useState("");
   const [progressStats, setProgressStats] = useState({ totalCompleted: 0 });
   const navigate = useNavigate();
@@ -139,6 +139,13 @@ export default function Dashboard() {
 
         {/* Profile Card */}
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-2xl mx-auto">
+          {userProgressLoading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+              <p className="mt-4 text-gray-600">Loading your profile...</p>
+            </div>
+          ) : (
+            <>
           <h1 className="text-3xl font-bold text-emerald-700 mb-6">Your Profile</h1>
 
           {/* Email verification banner */}
@@ -296,6 +303,8 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

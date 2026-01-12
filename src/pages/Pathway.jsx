@@ -8,9 +8,9 @@ import { CheckCircle, Circle, X } from "lucide-react";
 
 function Pathway() {
   const { user } = useAuth();
-  const { isLessonCompleted, toggleLessonCompletion, getProgressStats } = useUserProgress();
+  const { isLessonCompleted, toggleLessonCompletion, getProgressStats, loading: userProgressLoading } = useUserProgress();
   const [unit1Lessons, setUnit1Lessons] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [databaseLoading, setDatabaseLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const lessonRefs = useRef({});
@@ -21,7 +21,7 @@ function Pathway() {
   // Load all Unit 1 lessons on component mount
   useEffect(() => {
     const loadUnit1Lessons = async () => {
-      setLoading(true);
+      setDatabaseLoading(true);
       setError(null); // Clear any previous errors
       try {
         console.log('[Pathway] Starting to load Unit 1 lessons...');
@@ -59,12 +59,15 @@ function Pathway() {
         console.error('Error loading Unit 1 lessons:', error);
         setError('Failed to load lessons. Please try again later.');
       } finally {
-        setLoading(false);
+        setDatabaseLoading(false);
       }
     };
     
     loadUnit1Lessons();
   }, []);
+
+  // Combined loading state - wait for both database and user progress
+  const loading = databaseLoading || userProgressLoading;
 
   // Check for payment status in URL parameters
   useEffect(() => {
