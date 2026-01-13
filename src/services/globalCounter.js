@@ -1,81 +1,70 @@
-import { 
-  doc, 
-  setDoc, 
-  getDoc,
-  updateDoc,
-  increment,
-  serverTimestamp,
-  onSnapshot,
-  collection,
-  query,
-  where,
-  getDocs,
-  Timestamp
-} from "firebase/firestore";
-import { db } from "../firebase";
+// Global Questions Counter Service
+// Uses PostgreSQL via API instead of Firestore
 
-const COUNTER_DOC_PATH = "globalStats/questionsAnswered";
-const COMPLETIONS_COLLECTION = "completions";
+// Determine API base URL (same logic as database.js)
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || 
+   window.location.hostname === '127.0.0.1' || 
+   window.location.hostname === '');
+
+const API_BASE_URL = isLocalhost
+  ? '/api'  // Use proxy in development
+  : (import.meta.env.VITE_API_URL 
+      ? `${import.meta.env.VITE_API_URL}/api` 
+      : '/api');
 
 /**
  * Increment the global questions answered counter
  * Uses deduplication to prevent counting the same completion event twice
  */
 export async function incrementQuestionsAnswered(userId, lessonId, questionCount) {
+  console.log("[Global Counter] incrementQuestionsAnswered called with:", { userId, lessonId, questionCount });
+  
   if (!userId || !lessonId || !questionCount || questionCount <= 0) {
-    console.error("Invalid parameters for incrementQuestionsAnswered");
+    console.error("[Global Counter] Invalid parameters for incrementQuestionsAnswered:", { userId, lessonId, questionCount });
     return false;
   }
 
   try {
-    const lessonIdStr = String(lessonId);
-    const timestamp = Date.now();
+    const url = `${API_BASE_URL}/global-counter/increment`;
+    console.log("[Global Counter] Making API request to:", url);
     
-    // Create unique completion ID for deduplication
-    // Format: userId_lessonId_timestamp (rounded to nearest second to catch rapid duplicates)
-    const completionId = `${userId}_${lessonIdStr}_${Math.floor(timestamp / 1000)}`;
-    
-    // Check if this completion was already processed
-    const completionsRef = collection(db, COUNTER_DOC_PATH, COMPLETIONS_COLLECTION);
-    const completionDocRef = doc(completionsRef, completionId);
-    const completionDoc = await getDoc(completionDocRef);
-    
-    if (completionDoc.exists()) {
-      console.log("Completion already processed, skipping:", completionId);
-      return true; // Already counted, but return success
-    }
-    
-    // Mark this completion as processed first (to prevent race conditions)
-    await setDoc(completionDocRef, {
-      userId,
-      lessonId: lessonIdStr,
-      questionCount,
-      timestamp: Timestamp.fromMillis(timestamp),
-      processedAt: serverTimestamp()
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        lessonId: String(lessonId),
+        questionCount
+      })
     });
     
-    // Get or create the counter document
-    const counterDocRef = doc(db, COUNTER_DOC_PATH);
-    const counterDoc = await getDoc(counterDocRef);
+    console.log("[Global Counter] Response status:", response.status);
     
-    if (counterDoc.exists()) {
-      // Increment existing counter
-      await updateDoc(counterDocRef, {
-        count: increment(questionCount),
-        lastUpdated: serverTimestamp()
-      });
-    } else {
-      // Create new counter document
-      await setDoc(counterDocRef, {
-        count: questionCount,
-        lastUpdated: serverTimestamp(),
-        createdAt: serverTimestamp()
-      });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error("[Global Counter] API error:", errorData);
+      throw new Error(`API request failed: ${response.status} ${errorData.message || response.statusText}`);
     }
     
-    return true;
+    const data = await response.json();
+    console.log("[Global Counter] API response:", data);
+    
+    if (data.success) {
+      console.log("[Global Counter] Counter incremented successfully, new count:", data.count);
+      return true;
+    } else {
+      console.error("[Global Counter] API returned success: false");
+      return false;
+    }
   } catch (error) {
-    console.error("Error incrementing questions answered counter:", error);
+    console.error("[Global Counter] Error incrementing questions answered counter:", error);
+    console.error("[Global Counter] Error details:", {
+      message: error.message,
+      stack: error.stack
+    });
     // Don't throw - allow graceful degradation
     return false;
   }
@@ -86,46 +75,50 @@ export async function incrementQuestionsAnswered(userId, lessonId, questionCount
  */
 export async function getQuestionsAnsweredCount() {
   try {
-    const counterDocRef = doc(db, COUNTER_DOC_PATH);
-    const counterDoc = await getDoc(counterDocRef);
+    const url = `${API_BASE_URL}/global-counter/count`;
+    console.log("[Global Counter] Getting count from:", url);
     
-    if (counterDoc.exists()) {
-      const data = counterDoc.data();
-      return data.count || 0;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error("[Global Counter] Error getting count, status:", response.status);
+      return 0;
     }
     
-    return 0;
+    const data = await response.json();
+    const count = data.count || 0;
+    console.log("[Global Counter] Current count:", count);
+    return count;
   } catch (error) {
-    console.error("Error getting questions answered count:", error);
+    console.error("[Global Counter] Error getting questions answered count:", error);
     return 0;
   }
 }
 
 /**
  * Subscribe to real-time updates of the questions answered counter
+ * Since we're using PostgreSQL, we'll poll the API periodically
  * Returns an unsubscribe function
  */
 export function subscribeToCounter(callback) {
-  const counterDocRef = doc(db, COUNTER_DOC_PATH);
+  console.log("[Global Counter] Setting up polling subscription");
   
-  const unsubscribe = onSnapshot(
-    counterDocRef,
-    (docSnapshot) => {
-      if (docSnapshot.exists()) {
-        const data = docSnapshot.data();
-        const count = data.count || 0;
-        callback(count);
-      } else {
-        callback(0);
-      }
-    },
-    (error) => {
-      console.error("Error subscribing to counter:", error);
-      // On error, try to get current value once
-      getQuestionsAnsweredCount().then(callback).catch(() => callback(0));
+  // Poll every 2 seconds for updates
+  const pollInterval = setInterval(async () => {
+    try {
+      const count = await getQuestionsAnsweredCount();
+      callback(count);
+    } catch (error) {
+      console.error("[Global Counter] Error in polling:", error);
     }
-  );
+  }, 2000);
   
-  return unsubscribe;
+  // Also get initial value immediately
+  getQuestionsAnsweredCount().then(callback).catch(() => callback(0));
+  
+  // Return unsubscribe function
+  return () => {
+    console.log("[Global Counter] Unsubscribing from counter");
+    clearInterval(pollInterval);
+  };
 }
-

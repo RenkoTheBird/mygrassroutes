@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 import dotenv from 'dotenv';
-import { initDatabase, dbQuery, convertQuery, isDatabaseAvailable } from './src/database/db.js';
+import { initDatabase, dbQuery, convertQuery, isDatabaseAvailable, getPool } from './src/database/db.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -1097,6 +1097,108 @@ app.get('/api/sources', async (req, res) => {
     console.error('[API] Error fetching sources:', error);
     console.error('[API] Error stack:', error.stack);
     res.status(500).json({ error: `Failed to fetch sources: ${error.message}` });
+  }
+});
+
+// Global Questions Counter API endpoints
+// Increment the global questions answered counter
+app.post('/api/global-counter/increment', async (req, res) => {
+  if (!isDatabaseAvailable()) {
+    return res.status(503).json({ 
+      error: 'Database is not available',
+      message: 'Please configure DATABASE_URL environment variable.'
+    });
+  }
+  
+  try {
+    const { userId, lessonId, questionCount } = req.body;
+    
+    if (!userId || !lessonId || questionCount === undefined || questionCount <= 0) {
+      return res.status(400).json({ 
+        error: 'Invalid parameters',
+        message: 'userId, lessonId, and questionCount (positive number) are required'
+      });
+    }
+    
+    const lessonIdStr = String(lessonId);
+    const timestamp = Date.now();
+    const completionId = `${userId}_${lessonIdStr}_${Math.floor(timestamp / 1000)}`;
+    
+    // Check if this completion was already processed
+    const existingCompletion = await dbQuery.get(
+      'SELECT id FROM question_completions WHERE completion_id = $1',
+      [completionId]
+    );
+    
+    if (existingCompletion) {
+      console.log('[API] Completion already processed, skipping:', completionId);
+      return res.json({ success: true, message: 'Already processed', count: null });
+    }
+    
+    // Use a transaction to ensure atomicity
+    const pgPool = getPool();
+    if (!pgPool) {
+      return res.status(503).json({ error: 'Database pool not available' });
+    }
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Mark this completion as processed
+      await client.query(
+        'INSERT INTO question_completions (completion_id, user_id, lesson_id, question_count) VALUES ($1, $2, $3, $4)',
+        [completionId, userId, lessonIdStr, questionCount]
+      );
+      
+      // Increment the counter
+      const result = await client.query(
+        'UPDATE global_questions_counter SET count = count + $1, last_updated = CURRENT_TIMESTAMP RETURNING count',
+        [questionCount]
+      );
+      
+      await client.query('COMMIT');
+      
+      const newCount = result.rows[0].count;
+      console.log('[API] Counter incremented by', questionCount, 'to', newCount);
+      
+      res.json({ success: true, count: newCount });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[API] Error incrementing counter:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
+  }
+});
+
+// Get the current questions answered count
+app.get('/api/global-counter/count', async (req, res) => {
+  if (!isDatabaseAvailable()) {
+    return res.status(503).json({ 
+      error: 'Database is not available',
+      message: 'Please configure DATABASE_URL environment variable.'
+    });
+  }
+  
+  try {
+    const result = await dbQuery.get(
+      'SELECT count FROM global_questions_counter ORDER BY id DESC LIMIT 1'
+    );
+    
+    const count = result ? result.count : 0;
+    res.json({ count });
+  } catch (error) {
+    console.error('[API] Error getting counter:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
   }
 });
 

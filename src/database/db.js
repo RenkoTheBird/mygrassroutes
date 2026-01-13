@@ -76,6 +76,43 @@ async function initPostgreSQLTables() {
       )
     `);
     
+    // global_questions_counter table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS global_questions_counter (
+        id SERIAL PRIMARY KEY,
+        count INTEGER NOT NULL DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Initialize counter if it doesn't exist
+    const counterExists = await client.query(`
+      SELECT COUNT(*) as count FROM global_questions_counter
+    `);
+    if (parseInt(counterExists.rows[0].count) === 0) {
+      await client.query(`
+        INSERT INTO global_questions_counter (count) VALUES (0)
+      `);
+    }
+    
+    // question_completions table for deduplication
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS question_completions (
+        id SERIAL PRIMARY KEY,
+        completion_id TEXT UNIQUE NOT NULL,
+        user_id TEXT NOT NULL,
+        lesson_id TEXT NOT NULL,
+        question_count INTEGER NOT NULL,
+        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Create index on completion_id for faster lookups
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_completion_id ON question_completions(completion_id)
+    `);
+    
     console.log('[DATABASE] PostgreSQL tables initialized');
   } finally {
     client.release();
@@ -85,6 +122,11 @@ async function initPostgreSQLTables() {
 // Check if database is available
 export function isDatabaseAvailable() {
   return pgPool !== null;
+}
+
+// Get the pool for transactions (used in server.js)
+export function getPool() {
+  return pgPool;
 }
 
 // Database query methods

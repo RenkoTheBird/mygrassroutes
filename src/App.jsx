@@ -16,7 +16,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 
 import { AuthProvider, useAuth } from "./pages/AuthProvider";
 import ProtectedRoute from "./pages/ProtectedRoute";
-import { subscribeToCounter } from "./services/globalCounter";
+import { subscribeToCounter, getQuestionsAnsweredCount } from "./services/globalCounter";
 
 // Custom hook to get location (only works inside Router context)
 function useHideHeader() {
@@ -77,7 +77,18 @@ function AppContent() {
     
     // Subscribe to global questions answered counter
     useEffect(() => {
+      // Load initial value
+      getQuestionsAnsweredCount().then(count => {
+        console.log("[App] Initial counter value:", count);
+        setQuestionsAnswered(count);
+        setDisplayCount(count);
+      }).catch(error => {
+        console.error("[App] Error loading initial counter value:", error);
+      });
+      
+      // Set up real-time subscription
       const unsubscribe = subscribeToCounter((count) => {
+        console.log("[App] Counter updated via subscription:", count);
         setQuestionsAnswered(count);
       });
       

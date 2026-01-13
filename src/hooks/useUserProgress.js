@@ -170,17 +170,25 @@ export function useUserProgress() {
     
     // Increment global questions answered counter (fire and forget)
     if (questionCount > 0) {
+      console.log(`[useUserProgress] Calling incrementQuestionsAnswered with:`, {
+        userId: user.uid,
+        lessonId: lessonIdStr,
+        questionCount
+      });
       incrementQuestionsAnswered(user.uid, lessonIdStr, questionCount)
         .then(success => {
           if (success) {
-            console.log(`[Global Counter] Added ${questionCount} questions to global counter`);
+            console.log(`[useUserProgress] Successfully added ${questionCount} questions to global counter`);
           } else {
-            console.error("[Global Counter] Failed to increment counter");
+            console.error("[useUserProgress] Failed to increment counter - function returned false");
           }
         })
         .catch(error => {
-          console.error("[Global Counter] Error incrementing counter:", error);
+          console.error("[useUserProgress] Error incrementing counter:", error);
+          console.error("[useUserProgress] Error details:", error.message, error.stack);
         });
+    } else {
+      console.warn(`[useUserProgress] questionCount is ${questionCount}, not incrementing counter`);
     }
     
     return true; // Return immediately
