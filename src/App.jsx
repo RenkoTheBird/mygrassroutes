@@ -16,6 +16,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 
 import { AuthProvider, useAuth } from "./pages/AuthProvider";
 import ProtectedRoute from "./pages/ProtectedRoute";
+import { subscribeToCounter } from "./services/globalCounter";
 
 // Custom hook to get location (only works inside Router context)
 function useHideHeader() {
@@ -30,6 +31,9 @@ function AppContent() {
   const hasShownLoggedOutMessage = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const [questionsAnswered, setQuestionsAnswered] = useState(0);
+  const [displayCount, setDisplayCount] = useState(0);
+  const animationRef = useRef(null);
 
   const toggleAccordion = (index) => {
     setOpenIndexes((prev) =>
@@ -70,6 +74,55 @@ function AppContent() {
     useEffect(() => {
       window.scrollTo(0, 0);
     }, [location]);
+    
+    // Subscribe to global questions answered counter
+    useEffect(() => {
+      const unsubscribe = subscribeToCounter((count) => {
+        setQuestionsAnswered(count);
+      });
+      
+      return () => unsubscribe();
+    }, []);
+    
+    // Animate counter value changes with scrolling effect
+    useEffect(() => {
+      if (animationRef.current) {
+        clearInterval(animationRef.current);
+      }
+      
+      const startValue = displayCount;
+      const endValue = questionsAnswered;
+      const duration = 1000; // 1 second animation
+      const steps = 30;
+      const stepValue = (endValue - startValue) / steps;
+      const stepDuration = duration / steps;
+      let currentStep = 0;
+      
+      if (startValue === endValue) {
+        setDisplayCount(endValue);
+        return;
+      }
+      
+      animationRef.current = setInterval(() => {
+        currentStep++;
+        if (currentStep >= steps) {
+          setDisplayCount(endValue);
+          if (animationRef.current) {
+            clearInterval(animationRef.current);
+            animationRef.current = null;
+          }
+        } else {
+          const newValue = Math.round(startValue + stepValue * currentStep);
+          setDisplayCount(newValue);
+        }
+      }, stepDuration);
+      
+      return () => {
+        if (animationRef.current) {
+          clearInterval(animationRef.current);
+        }
+      };
+    }, [questionsAnswered]);
     
     // Fade-in scroll animation effect - re-run when on homepage
     useEffect(() => {
@@ -139,6 +192,20 @@ function AppContent() {
           
           .animate-slide-down {
             animation: slideDown 0.4s ease-out;
+          }
+          
+          .counter-number {
+            display: inline-block;
+            transition: transform 0.1s ease-out;
+          }
+          
+          .counter-number.updating {
+            animation: counterPulse 0.3s ease-in-out;
+          }
+          
+          @keyframes counterPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
           }
           
           @keyframes slideDown {
@@ -213,6 +280,17 @@ function AppContent() {
                               <p className="text-sm md:text-base mb-6 text-white text-left max-w-md">
                                 Create change right from your screen.
                               </p>
+                              {/* Global Questions Counter */}
+                              <div className="mb-6 text-white">
+                                <div className="text-2xl md:text-3xl font-bold text-white">
+                                  <span className="counter-number" key={displayCount}>
+                                    {displayCount.toLocaleString()}
+                                  </span>
+                                  <span className="text-lg md:text-xl font-normal ml-2">
+                                    questions answered worldwide
+                                  </span>
+                                </div>
+                              </div>
                               <Link to="/pathway" className="inline-block bg-white text-emerald-600 font-medium px-4 md:px-5 py-2 rounded shadow hover:bg-emerald-50 transition text-sm md:text-base">
                                 View The Pathway Now →
                               </Link>

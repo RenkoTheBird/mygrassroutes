@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../pages/AuthProvider";
 import * as progressService from "../services/userProgress";
+import { incrementQuestionsAnswered } from "../services/globalCounter";
 
 export function useUserProgress() {
   const { user } = useAuth();
@@ -136,7 +137,7 @@ export function useUserProgress() {
     }
   }, [user, isLessonCompleted]);
 
-  const markLessonComplete = useCallback(async (lessonId) => {
+  const markLessonComplete = useCallback(async (lessonId, questionCount = 0) => {
     if (!user) {
       console.log("No user logged in");
       return false;
@@ -166,6 +167,21 @@ export function useUserProgress() {
       .catch(error => {
         console.error("Error in background Firestore save:", error);
       });
+    
+    // Increment global questions answered counter (fire and forget)
+    if (questionCount > 0) {
+      incrementQuestionsAnswered(user.uid, lessonIdStr, questionCount)
+        .then(success => {
+          if (success) {
+            console.log(`[Global Counter] Added ${questionCount} questions to global counter`);
+          } else {
+            console.error("[Global Counter] Failed to increment counter");
+          }
+        })
+        .catch(error => {
+          console.error("[Global Counter] Error incrementing counter:", error);
+        });
+    }
     
     return true; // Return immediately
   }, [user]);

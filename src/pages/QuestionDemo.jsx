@@ -78,10 +78,10 @@ const QuestionDemo = () => {
   // Mark lesson as complete when lesson is completed
   useEffect(() => {
     const markComplete = async () => {
-      if (lessonCompleted && !hasMarkedComplete) {
-        console.log('[QuestionDemo] Marking lesson complete:', lessonId);
+      if (lessonCompleted && !hasMarkedComplete && questions.length > 0) {
+        console.log('[QuestionDemo] Marking lesson complete:', lessonId, 'with', questions.length, 'questions');
         try {
-          await markLessonComplete(lessonId);
+          await markLessonComplete(lessonId, questions.length);
           console.log('[QuestionDemo] Lesson marked complete');
           setHasMarkedComplete(true);
         } catch (error) {
@@ -91,7 +91,7 @@ const QuestionDemo = () => {
     };
 
     markComplete();
-  }, [lessonCompleted, hasMarkedComplete, lessonId, markLessonComplete]);
+  }, [lessonCompleted, hasMarkedComplete, lessonId, markLessonComplete, questions.length]);
 
   const handleAnswer = (answerData) => {
     setAnswers(prev => [...prev, answerData]);
