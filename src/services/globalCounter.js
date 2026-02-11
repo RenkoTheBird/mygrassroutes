@@ -1,6 +1,6 @@
 // Global Questions Counter Service
 // Uses PostgreSQL via API instead of Firestore
-import { authenticatedPost } from '../utils/api';
+import { authenticatedPost, authenticatedGet } from '../utils/api.js';
 
 /**
  * Increment the global questions answered counter
@@ -57,10 +57,9 @@ export async function incrementQuestionsAnswered(userId, lessonId, questionCount
  */
 export async function getQuestionsAnsweredCount() {
   try {
-    const url = `${API_BASE_URL}/global-counter/count`;
-    console.log("[Global Counter] Getting count from:", url);
-    
-    const response = await fetch(url);
+    console.log("[Global Counter] Getting count from /global-counter/count");
+
+    const response = await authenticatedGet('/global-counter/count');
     
     if (!response.ok) {
       console.error("[Global Counter] Error getting count, status:", response.status);
