@@ -10,9 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 
-# don't commit security
+# don't commit server files
 server 
-src/utils
 
 dist-ssr
 *.local
