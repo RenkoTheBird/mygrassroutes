@@ -9,6 +9,11 @@ lerna-debug.log*
 
 node_modules
 dist
+
+# don't commit security
+server 
+src/utils
+
 dist-ssr
 *.local
 
@@ -28,3 +33,5 @@ dist-ssr
 NGROK_SETUP.md
 NGROK_TROUBLESHOOTING.md
 env.example
+SECURITY.md
+SECURITY_IMPLEMENTATION_SUMMARY.md

@@ -6,6 +6,15 @@ import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 import dotenv from 'dotenv';
 import { initDatabase, dbQuery, convertQuery, isDatabaseAvailable, getPool } from './src/database/db.js';
+import { 
+  securityHeaders, 
+  createRateLimiter, 
+  authRateLimiter, 
+  paymentRateLimiter,
+  validateInput,
+  validationRules 
+} from './server/middleware/security.js';
+import { verifyFirebaseToken } from './server/middleware/auth.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -65,8 +74,11 @@ function startServer() {
   }
 })();
 
-// Middleware
-// Configure CORS for production
+// ==================== SECURITY MIDDLEWARE ====================
+// Apply security headers first
+app.use(securityHeaders);
+
+// Configure CORS with stricter production settings
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests, or same-origin requests)
@@ -92,17 +104,24 @@ const corsOptions = {
       if (process.env.NODE_ENV !== 'production') {
         callback(null, true);
       } else {
-        // In production, be more permissive for same-domain requests
-        // Since frontend and backend are on the same domain, this should rarely be an issue
-        callback(null, true);
+        // In production, reject unknown origins
+        callback(new Error('Not allowed by CORS'));
       }
     }
   },
   credentials: true,
+  optionsSuccessStatus: 200, // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+
+// Body parser with size limits to prevent DoS attacks
+app.use(express.json({ limit: '10mb' })); // Limit JSON payload size
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Limit URL-encoded payload size
+
+// Apply rate limiting
+const generalRateLimiter = createRateLimiter(15 * 60 * 1000, 100); // 100 requests per 15 minutes
+app.use('/api', generalRateLimiter);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -113,8 +132,11 @@ app.use((req, res, next) => {
 // Check if we're in production
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Stripe Checkout endpoint
-app.post('/create-checkout-session', async (req, res) => {
+// Stripe Checkout endpoint with rate limiting and validation
+app.post('/create-checkout-session', 
+  paymentRateLimiter,
+  validateInput([validationRules.paymentAmount, validationRules.currency]),
+  async (req, res) => {
   try {
     if (!stripe) {
       return res.status(503).json({ 
@@ -230,7 +252,9 @@ app.get('/api/units', (req, res) => {
   }
 });
 
-app.get('/api/sections/:unitId', (req, res) => {
+app.get('/api/sections/:unitId', 
+  validateInput([validationRules.unitId]),
+  (req, res) => {
   try {
     const { unitId } = req.params;
     const unit = parseInt(unitId);
@@ -339,7 +363,9 @@ app.get('/api/sections/:unitId', (req, res) => {
   }
 });
 
-app.get('/api/lessons/:sectionId', (req, res) => {
+app.get('/api/lessons/:sectionId', 
+  validateInput([validationRules.sectionId]),
+  (req, res) => {
   try {
     const { sectionId } = req.params;
     const sectionNum = parseInt(sectionId);
@@ -789,7 +815,9 @@ app.get('/api/lessons/:sectionId', (req, res) => {
   }
 });
 
-app.get('/api/lesson/:lessonId', (req, res) => {
+app.get('/api/lesson/:lessonId', 
+  validateInput([validationRules.lessonId]),
+  (req, res) => {
   try {
     const { lessonId } = req.params;
     // Return mock lesson data
@@ -810,7 +838,9 @@ app.get('/api/lesson/:lessonId', (req, res) => {
   }
 });
 
-app.get('/api/questions/:lessonId', async (req, res) => {
+app.get('/api/questions/:lessonId', 
+  validateInput([validationRules.lessonId]),
+  async (req, res) => {
   if (!isDatabaseAvailable()) {
     return res.status(503).json({ 
       error: 'Database is not available',
@@ -901,7 +931,9 @@ app.get('/api/questions/:lessonId', async (req, res) => {
   }
 });
 
-app.get('/api/question/:questionId', async (req, res) => {
+app.get('/api/question/:questionId', 
+  validateInput([validationRules.questionId]),
+  async (req, res) => {
   if (!isDatabaseAvailable()) {
     return res.status(503).json({ 
       error: 'Database is not available',
@@ -943,7 +975,9 @@ app.get('/api/question/:questionId', async (req, res) => {
 });
 
 // New endpoint for lesson content
-app.get('/api/lesson-content/:lessonId', async (req, res) => {
+app.get('/api/lesson-content/:lessonId', 
+  validateInput([validationRules.lessonId]),
+  async (req, res) => {
   if (!isDatabaseAvailable()) {
     return res.status(503).json({ 
       error: 'Database is not available',
@@ -1102,7 +1136,10 @@ app.get('/api/sources', async (req, res) => {
 
 // Global Questions Counter API endpoints
 // Increment the global questions answered counter
-app.post('/api/global-counter/increment', async (req, res) => {
+app.post('/api/global-counter/increment', 
+  verifyFirebaseToken(true), // Require authentication
+  validateInput([validationRules.userId, validationRules.lessonIdBody, validationRules.questionCount]),
+  async (req, res) => {
   if (!isDatabaseAvailable()) {
     return res.status(503).json({ 
       error: 'Database is not available',

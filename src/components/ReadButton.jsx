@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, BookOpen } from 'lucide-react';
+import { sanitizeHTML } from '../utils/security';
 
 const ReadButton = ({ lessonInfo, questionNumber }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,6 +9,9 @@ const ReadButton = ({ lessonInfo, questionNumber }) => {
   if (questionNumber < 2) {
     return null;
   }
+
+  // Sanitize HTML content to prevent XSS attacks
+  const sanitizedContent = sanitizeHTML(lessonInfo);
 
   return (
     <>
@@ -43,11 +47,11 @@ const ReadButton = ({ lessonInfo, questionNumber }) => {
                 </button>
               </div>
 
-              {/* Lesson Content */}
+              {/* Lesson Content - Using sanitized HTML */}
               <div className="prose prose-lg max-w-none">
                 <div 
                   className="text-gray-700 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: lessonInfo }}
+                  dangerouslySetInnerHTML={{ __html: sanitizedContent }}
                 />
               </div>
 

@@ -1,17 +1,6 @@
 // Global Questions Counter Service
 // Uses PostgreSQL via API instead of Firestore
-
-// Determine API base URL (same logic as database.js)
-const isLocalhost = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || 
-   window.location.hostname === '127.0.0.1' || 
-   window.location.hostname === '');
-
-const API_BASE_URL = isLocalhost
-  ? '/api'  // Use proxy in development
-  : (import.meta.env.VITE_API_URL 
-      ? `${import.meta.env.VITE_API_URL}/api` 
-      : '/api');
+import { authenticatedPost } from '../utils/api';
 
 /**
  * Increment the global questions answered counter
@@ -26,19 +15,12 @@ export async function incrementQuestionsAnswered(userId, lessonId, questionCount
   }
 
   try {
-    const url = `${API_BASE_URL}/global-counter/increment`;
-    console.log("[Global Counter] Making API request to:", url);
+    console.log("[Global Counter] Making authenticated API request to /global-counter/increment");
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId,
-        lessonId: String(lessonId),
-        questionCount
-      })
+    const response = await authenticatedPost('/global-counter/increment', {
+      userId,
+      lessonId: String(lessonId),
+      questionCount
     });
     
     console.log("[Global Counter] Response status:", response.status);
