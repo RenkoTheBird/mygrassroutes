@@ -15,8 +15,13 @@ export const createRateLimiter = (windowMs = 15 * 60 * 1000, max = 100) => {
     },
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    // Skip rate limiting for health checks
-    skip: (req) => req.path === '/health',
+    // Skip rate limiting for health checks and counter endpoints
+    // Counter endpoints are polled frequently and have their own protections (auth, deduplication)
+    skip: (req) => {
+      return req.path === '/health' || 
+             req.path === '/api/global-counter/count' || 
+             req.path === '/api/global-counter/increment';
+    },
   });
 };
 
