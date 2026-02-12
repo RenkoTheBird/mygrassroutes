@@ -28,8 +28,7 @@ Thumbs.db
 *.md
 !README.md
 
-# Security files (should not be in Docker image)
-server
+# Security documentation (not needed in Docker image)
 SECURITY.md
 SECURITY_IMPLEMENTATION_SUMMARY.md
 
