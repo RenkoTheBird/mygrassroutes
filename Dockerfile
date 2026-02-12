@@ -3,9 +3,24 @@ FROM node:22.15.0
 # Set working directory
 WORKDIR /app
 
-# Railway automatically makes environment variables available during build
-# Vite will read VITE_* variables from the environment during npm run build
-# No need to explicitly set them here - Railway passes them to the build context
+# Accept build arguments (Railway will pass environment variables as build args)
+# These are optional - if not provided, the build will continue with warnings
+ARG VITE_FIREBASE_API_KEY=""
+ARG VITE_FIREBASE_AUTH_DOMAIN=""
+ARG VITE_FIREBASE_PROJECT_ID=""
+ARG VITE_FIREBASE_STORAGE_BUCKET=""
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID=""
+ARG VITE_FIREBASE_APP_ID=""
+ARG VITE_FIREBASE_MEASUREMENT_ID=""
+
+# Set as environment variables for Vite to access during build
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
+ENV VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN
+ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
+ENV VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET
+ENV VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID
+ENV VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
+ENV VITE_FIREBASE_MEASUREMENT_ID=$VITE_FIREBASE_MEASUREMENT_ID
 
 # Install dependencies first (better layer caching)
 COPY package*.json ./
@@ -14,14 +29,8 @@ RUN npm install
 # Copy the rest of the app
 COPY . .
 
-# Debug: Print environment variables (without exposing sensitive values)
-RUN echo "Checking Vite environment variables..." && \
-    echo "VITE_FIREBASE_API_KEY is set: $([ -n \"$VITE_FIREBASE_API_KEY\" ] && echo 'YES' || echo 'NO')" && \
-    echo "VITE_FIREBASE_AUTH_DOMAIN is set: $([ -n \"$VITE_FIREBASE_AUTH_DOMAIN\" ] && echo 'YES' || echo 'NO')" && \
-    echo "VITE_FIREBASE_PROJECT_ID is set: $([ -n \"$VITE_FIREBASE_PROJECT_ID\" ] && echo 'YES' || echo 'NO')"
-
 # Build the frontend with the correct Node.js version
-# Vite will use the ENV variables set above
+# The check-env script will warn if variables are missing but won't fail the build
 RUN npm run build
 
 # Runtime configuration

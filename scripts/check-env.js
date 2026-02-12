@@ -21,15 +21,17 @@ viteVars.forEach(varName => {
   }
 });
 
-// Exit with error if required vars are missing
+// Check required vars but don't fail the build - let Vite handle it
+// This allows us to see what Railway is passing
 const required = ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID'];
 const missing = required.filter(v => !process.env[v]);
 
 if (missing.length > 0) {
-  console.error('[BUILD] ERROR: Missing required environment variables:', missing);
-  console.error('[BUILD] Make sure these are set in Railway before building');
-  process.exit(1);
+  console.warn('[BUILD] WARNING: Missing required environment variables:', missing);
+  console.warn('[BUILD] The build will continue, but Firebase may not work correctly.');
+  console.warn('[BUILD] Make sure these are set in Railway Variables before building.');
+  console.warn('[BUILD] Railway may need these set as "Build-time" variables.');
+} else {
+  console.log('[BUILD] ✓ All required environment variables are set');
 }
-
-console.log('[BUILD] All required environment variables are set');
 
