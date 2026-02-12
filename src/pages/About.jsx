@@ -491,7 +491,7 @@ function About() {
               </a>
             </div>
             <p className="mt-2 text-xs text-gray-600">
-              Copyright © 2025 mygrassroutes
+              Copyright © 2026 mygrassroutes
             </p>
           </footer>
         </main>
