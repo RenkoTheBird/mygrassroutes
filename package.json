@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "concurrently --names \"SERVER,VITE\" --prefix-colors \"blue,green\" \"npm run server\" \"vite\"",
     "dev:frontend": "vite",
-    "build": "vite build",
+    "check-env": "node scripts/check-env.js",
+    "build": "npm run check-env && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "node server.js",
