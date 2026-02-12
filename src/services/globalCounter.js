@@ -84,7 +84,7 @@ export async function getQuestionsAnsweredCount() {
 export function subscribeToCounter(callback) {
   console.log("[Global Counter] Setting up polling subscription");
   
-  // Poll every 2 seconds for updates
+  // Poll every 15 seconds for updates (reduced from 2 seconds to avoid rate limiting)
   const pollInterval = setInterval(async () => {
     try {
       const count = await getQuestionsAnsweredCount();
@@ -92,7 +92,7 @@ export function subscribeToCounter(callback) {
     } catch (error) {
       console.error("[Global Counter] Error in polling:", error);
     }
-  }, 2000);
+  }, 15000); // 15 seconds instead of 2 seconds
   
   // Also get initial value immediately
   getQuestionsAnsweredCount().then(callback).catch(() => callback(0));
