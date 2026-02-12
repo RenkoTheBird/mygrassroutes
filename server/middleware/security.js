@@ -52,7 +52,12 @@ export const securityHeaders = helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Note: 'unsafe-eval' needed for some React features
+      scriptSrc: [
+        "'self'", 
+        "'unsafe-inline'", 
+        "'unsafe-eval'", // Note: 'unsafe-eval' needed for some React features
+        "https://static.cloudflareinsights.com", // Allow Cloudflare Insights
+      ],
       imgSrc: ["'self'", "data:", "https:", "http:"],
       connectSrc: [
         "'self'",
@@ -61,6 +66,7 @@ export const securityHeaders = helmet({
         "https://*.googleapis.com",
         "https://identitytoolkit.googleapis.com",
         "https://securetoken.googleapis.com",
+        "https://static.cloudflareinsights.com", // Allow Cloudflare Insights
       ],
       frameSrc: ["'self'", "https://js.stripe.com"],
       objectSrc: ["'none'"],

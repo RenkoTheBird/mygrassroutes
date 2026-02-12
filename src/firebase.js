@@ -21,9 +21,18 @@ const missingKeys = requiredKeys.filter(key => !firebaseConfig[key]);
 if (missingKeys.length > 0) {
   console.error('[FIREBASE] Missing required configuration:', missingKeys);
   console.error('[FIREBASE] Please set the following environment variables in Railway:');
+  // Map camelCase keys to their actual env var names
+  const envVarMap = {
+    apiKey: 'VITE_FIREBASE_API_KEY',
+    authDomain: 'VITE_FIREBASE_AUTH_DOMAIN',
+    projectId: 'VITE_FIREBASE_PROJECT_ID',
+    storageBucket: 'VITE_FIREBASE_STORAGE_BUCKET',
+    messagingSenderId: 'VITE_FIREBASE_MESSAGING_SENDER_ID',
+    appId: 'VITE_FIREBASE_APP_ID',
+    measurementId: 'VITE_FIREBASE_MEASUREMENT_ID',
+  };
   missingKeys.forEach(key => {
-    const envVarName = `VITE_FIREBASE_${key.toUpperCase().replace(/([A-Z])/g, '_$1')}`;
-    console.error(`[FIREBASE]   - ${envVarName}`);
+    console.error(`[FIREBASE]   - ${envVarMap[key] || `VITE_FIREBASE_${key.toUpperCase()}`}`);
   });
 }
 

@@ -13,6 +13,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check if Firebase auth is initialized
+    if (!auth) {
+      console.error('[AuthProvider] Firebase auth is not initialized. Check Firebase configuration.');
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
