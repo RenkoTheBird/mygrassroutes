@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build output (will be built in Docker)
+dist
+
+# Environment files (should use Railway environment variables instead)
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Security files (should not be in Docker image)
+server
+SECURITY.md
+SECURITY_IMPLEMENTATION_SUMMARY.md
+
+# Other
+*.log
+coverage
+.nyc_output
+

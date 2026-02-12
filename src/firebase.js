@@ -14,10 +14,35 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// Validate Firebase config
+const requiredKeys = ['apiKey', 'authDomain', 'projectId'];
+const missingKeys = requiredKeys.filter(key => !firebaseConfig[key]);
 
-// Initialize Firestore with persistence and unlimited cache
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-});
+if (missingKeys.length > 0) {
+  console.error('[FIREBASE] Missing required configuration:', missingKeys);
+  console.error('[FIREBASE] Please set the following environment variables in Railway:');
+  missingKeys.forEach(key => {
+    const envVarName = `VITE_FIREBASE_${key.toUpperCase().replace(/([A-Z])/g, '_$1')}`;
+    console.error(`[FIREBASE]   - ${envVarName}`);
+  });
+}
+
+let app, auth, db;
+
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+
+  // Initialize Firestore with persistence and unlimited cache
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED })
+  });
+} catch (error) {
+  console.error('[FIREBASE] Failed to initialize Firebase:', error);
+  // Set to null so the app can handle the error gracefully
+  app = null;
+  auth = null;
+  db = null;
+}
+
+export { app, auth, db };
