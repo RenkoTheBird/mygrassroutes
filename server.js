@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { initDatabase, dbQuery, convertQuery, isDatabaseAvailable, getPool } from './src/database/db.js';
 import { 
@@ -84,8 +85,14 @@ app.use(securityHeaders);
 // Configure CORS with stricter production settings
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests, or same-origin requests)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (like mobile apps, curl requests, or same-origin requests)
+    // Same-origin requests don't send an Origin header
+    if (!origin) {
+      console.log('[CORS] Allowing request with no origin (same-origin or non-browser)');
+      return callback(null, true);
+    }
+    
+    console.log('[CORS] Checking origin:', origin);
     
     // In production, allow requests from the production domain
     const allowedOrigins = [
@@ -95,19 +102,24 @@ const corsOptions = {
       'http://localhost:3000',
     ];
     
-    // Also allow any Railway preview domains (for testing)
-    if (origin.includes('.railway.app') || origin.includes('.up.railway.app')) {
+    // Also allow any Railway domains (for testing and deployment)
+    // Railway uses various domain patterns: *.railway.app, *.up.railway.app, etc.
+    if (origin.includes('railway.app') || origin.includes('railway.xyz')) {
+      console.log('[CORS] Allowing Railway domain:', origin);
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
+      console.log('[CORS] Allowing known origin:', origin);
       callback(null, true);
     } else {
       // In development, allow all origins
       if (process.env.NODE_ENV !== 'production') {
+        console.log('[CORS] Development mode - allowing origin:', origin);
         callback(null, true);
       } else {
         // In production, reject unknown origins
+        console.error('[CORS] Rejecting origin:', origin);
         callback(new Error('Not allowed by CORS'));
       }
     }
@@ -1250,6 +1262,27 @@ app.get('/health', (req, res) => {
 // Serve static files from the dist directory in production (after API routes)
 if (isProduction) {
   const distPath = path.join(__dirname, 'dist');
+  const indexHtmlPath = path.join(distPath, 'index.html');
+  
+  // Check if dist directory exists
+  try {
+    const distExists = fs.existsSync(distPath);
+    const indexExists = fs.existsSync(indexHtmlPath);
+    
+    if (!distExists) {
+      console.error(`[SERVER] ERROR: dist directory not found at ${distPath}`);
+      console.error('[SERVER] Make sure npm run build completed successfully');
+    } else if (!indexExists) {
+      console.error(`[SERVER] ERROR: index.html not found at ${indexHtmlPath}`);
+      console.error('[SERVER] Make sure npm run build completed successfully');
+    } else {
+      console.log(`[SERVER] ✓ dist directory found at ${distPath}`);
+      console.log(`[SERVER] ✓ index.html found`);
+    }
+  } catch (error) {
+    console.error('[SERVER] Error checking dist directory:', error);
+  }
+  
   // Configure express.static with proper MIME types for SVG files
   app.use(express.static(distPath, {
     setHeaders: (res, filePath) => {
@@ -1266,7 +1299,12 @@ if (isProduction) {
     if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/create-checkout-session')) {
       return res.status(404).json({ error: 'Not found' });
     }
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    res.sendFile(indexHtmlPath, (err) => {
+      if (err) {
+        console.error('[SERVER] Error serving index.html:', err);
+        res.status(500).send('Error loading application');
+      }
+    });
   });
 } else {
   // Root endpoint - helpful error message in development
